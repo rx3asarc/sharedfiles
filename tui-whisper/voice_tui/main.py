@@ -474,9 +474,6 @@ class VoiceToTextController:
 
     def _on_hotkey_press(self):
         """Handle hotkey press event (triggered by add_hotkey or hook)."""
-        import sys
-        sys.stderr.write("[PRESS] Hotkey press event\n")
-        sys.stderr.flush()
         try:
             with open("debug.log", "a") as f:
                 f.write("Hotkey press event (handler entry)\n")
@@ -500,9 +497,6 @@ class VoiceToTextController:
 
     def _on_hotkey_release(self):
         """Handle hotkey release event (triggered by add_hotkey or hook)."""
-        import sys
-        sys.stderr.write("[RELEASE] Hotkey release event\n")
-        sys.stderr.flush()
         try:
             with open("debug.log", "a") as f:
                 f.write("Hotkey release event (handler entry)\n")
