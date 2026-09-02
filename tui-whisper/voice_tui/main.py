@@ -607,6 +607,10 @@ class VoiceToTextController:
                 else:
                     with open("debug.log", "a") as f:
                         f.write("reconfigure_hotkey: failed to register new hotkey\n")
+                # unhook_all() also killed the UI key listener; bring it back so
+                # esc/q/settings still work after changing the hotkey.
+                if self.app:
+                    self.app.rehook_ui_keys()
         except Exception as e:
             with open("debug.log", "a") as f:
                 f.write(f"reconfigure_hotkey: hot-reload error: {e}\n")

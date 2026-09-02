@@ -254,6 +254,44 @@ class VoiceToTextASCIIApp:
             with open("debug.log", "a") as f:
                 f.write(f"Terminal size detect error: {e}\n")
 
+    def _on_ui_key_event(self, event):
+        """Handle raw key events for the UI (settings, navigation, quit)."""
+        if event.event_type == 'down':
+            try:
+                key = event.name.lower() if event.name else ''
+                if key:
+                    self._process_key_in_main_loop(key)
+            except Exception as e:
+                try:
+                    with open("debug.log", "a") as f:
+                        f.write(f"Key event processing error: {e}\n")
+                except:
+                    pass
+
+    def rehook_ui_keys(self):
+        """Re-register the UI keyboard hook.
+
+        Required after controller.reconfigure_hotkey() calls keyboard.unhook_all(),
+        which would otherwise leave the TUI deaf (no esc/q/navigation).
+        """
+        if keyboard is None:
+            return False
+        try:
+            keyboard.hook(self._on_ui_key_event)
+            try:
+                with open("debug.log", "a") as f:
+                    f.write("Re-registered keyboard.hook for UI keys\n")
+            except:
+                pass
+            return True
+        except Exception as e:
+            try:
+                with open("debug.log", "a") as f:
+                    f.write(f"Failed to re-register UI keys hook: {e}\n")
+            except:
+                pass
+            return False
+
     def _keyboard_listener(self):
         """Listen for keyboard input using the keyboard library hook."""
         try:
@@ -265,17 +303,7 @@ class VoiceToTextASCIIApp:
                     f.write("Keyboard library not available, UI keyboard disabled\n")
                 return
 
-            def on_key_event(event):
-                if event.event_type == 'down':
-                    try:
-                        key = event.name.lower() if event.name else ''
-                        if key:
-                            self._process_key_in_main_loop(key)
-                    except Exception as e:
-                        with open("debug.log", "a") as f:
-                            f.write(f"Key event processing error: {e}\n")
-
-            keyboard.hook(on_key_event)
+            keyboard.hook(self._on_ui_key_event)
             with open("debug.log", "a") as f:
                 f.write("Registered keyboard.hook for UI keys\n")
 
