@@ -51,7 +51,11 @@ class VoiceToTextASCIIApp:
         # Components
         self.status_panel = ASCIIStatusPanel(hotkey=self.config.hotkey)
         # Waveform with lighter smoothing (0.35 = responsive; was 0.7 = sluggish)
-        self.waveform = ASCIIWaveformVisualizer(width=self.layout.PANEL_WIDTH - 4, smoothing=0.35)
+        self.waveform = ASCIIWaveformVisualizer(
+            width=self.layout.PANEL_WIDTH - 4,
+            smoothing=0.35,
+            field_height=self.layout.WAVEFORM_HEIGHT - 2
+        )
         self.metrics = ASCIIMetricsRow()
         self.history = ASCIIHistoryLog(
             max_visible=self.layout.HISTORY_HEIGHT - 2,
@@ -510,7 +514,10 @@ class VoiceToTextASCIIApp:
             self.buffer = ASCIIScreenBuffer(self.layout.UI_WIDTH, self.layout.UI_HEIGHT)
 
             # Update component sizes
-            self.waveform = ASCIIWaveformVisualizer(width=self.layout.PANEL_WIDTH - 4)
+            self.waveform = ASCIIWaveformVisualizer(
+                width=self.layout.PANEL_WIDTH - 4,
+                field_height=self.layout.WAVEFORM_HEIGHT - 2
+            )
             self.history.max_visible = self.layout.HISTORY_HEIGHT - 2
 
             # Mark for render; next frame will overwrite everything

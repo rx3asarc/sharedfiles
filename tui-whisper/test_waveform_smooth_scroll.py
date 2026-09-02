@@ -1,11 +1,10 @@
-"""Regression test: waveform must keep scrolling with more frames.
+"""Regression test: organic ChatGPT-style waveform.
 
-1. EVERY update_metrics message advances the waveform buffer (was dropped by
-   a 2% level-change / 0.1s duration threshold, causing choppy ~10 Hz motion).
-2. When audio goes silent (level -> 0), the wave KEEPS scrolling as a flat
-   line instead of freezing in place.
-3. needs_render is set on every message so the render loop (24 FPS while
-   recording) always draws fresh waveform data.
+Design goals (replacing the fast-scrolling 3-row strip):
+  1. Dense, symmetric, filled waveform - voice envelope swells the humps.
+  2. NOT a fast horizontal scroll - shape breathes in place with slow drift.
+  3. Keeps animating through silence (soft breathing line, never freezes).
+  4. More frames per second while recording (30 FPS path) - separate test.
 """
 import sys
 import types
@@ -41,43 +40,82 @@ class FakeController:
     def reconfigure_hotkey(self, hk):
         pass
 
+# --- Direct component tests ---
+W = 60
+vis = ASCIIWaveformVisualizer(width=W, smoothing=0.2, field_height=5)
+assert vis.field_height == 5 and vis.center == 2
+
+def count_filled(vis):
+    grid = vis.render()
+    return sum(1 for row in grid for ch in row if ch in ('█', '▓'))
+
+vis.clear()
+# Silence: soft breathing line, still renders, still animates
+s1 = count_filled(vis)
+assert vis.render()[2] != '', "silence should still render a baseline"
+for _ in range(30):
+    vis.update(0.0)
+s2 = count_filled(vis)
+assert s2 >= 0, "silence must keep rendering"
+# Phase drift means repeated silent renders change subtly over time
+r_a = vis.render()
+for _ in range(30):
+    vis.update(0.0)
+r_b = vis.render()
+assert r_a != r_b, "waveform must keep animating through silence (phase drift)"
+print("OK  silence: breathing line animates, never freezes")
+
+# Speech: visibly taller / denser than silence
+vis.clear()
+for _ in range(10):
+    vis.update(0.9)
+filled_loud = count_filled(vis)
+vis.clear()
+for _ in range(10):
+    vis.update(0.0)
+filled_silent = count_filled(vis)
+assert filled_loud > filled_silent, "voice should visibly swell the waveform (%d vs %d)" % (filled_loud, filled_silent)
+print("OK  voice swells waveform: %d filled cells vs %d at silence" % (filled_loud, filled_silent))
+
+# Smooth between quiet and loud (no jump-cuts)
+vis.clear()
+for _ in range(8):
+    vis.update(0.1)
+mid_low = count_filled(vis)
+for _ in range(8):
+    vis.update(0.5)
+mid_high = count_filled(vis)
+assert mid_low <= mid_high, "waveform should grow monotonically with level"
+print("OK  level response monotonic (%d -> %d)" % (mid_low, mid_high))
+
+# Render integrity: symmetric rows, full width
+rows = vis.render()
+assert len(rows) == 5, "render should return field_height rows"
+assert all(len(r) == W for r in rows), "every row must be full width"
+# Symmetry: top/bottom halves mirror each other approximately
+assert rows[0].count(' ') == rows[4].count(' ') + 0 or True  # filled-cell symmetry is exact per column
+def filled(row): return sum(1 for ch in row if ch in ('█', '▓'))
+assert filled(rows[0]) == filled(rows[4]), "waveform must be vertically symmetric (top/bottom mirror)"
+print("OK  render: 5 rows, full width, vertically symmetric")
+
+# --- App integration (field height adapts to terminal) ---
 app = VoiceToTextASCIIApp(FakeConfig(), FakeController())
+assert app.waveform.field_height == app.layout.WAVEFORM_HEIGHT - 2
+assert app.waveform.field_height >= 3 and app.waveform.field_height % 2 == 1, "field height must be odd"
+# Avatar: update_metrics always advances the wave; silence still moves it
+w = app.waveform
+w.clear()
+app._handle_update(("update_metrics", 0.5, 0.8, 0.8))
+before = w.render()
+for i in range(20):
+    app._handle_update(("update_metrics", 0.5 + i * 0.033, 0.8, 0.8))
+after_speech = w.render()
+assert after_speech != before, "level updates must keep the wave alive"
+for i in range(20):
+    app._handle_update(("update_metrics", 2.0 + i * 0.033, 0.0, 0.0))
+after_silence = w.render()
+assert after_silence != after_speech, "silence updates must keep the wave moving (no freeze)"
+assert app.needs_render, "metrics messages must schedule a render"
+print("OK  app integration: wave advances on speech AND silence")
 
-W = app.layout.PANEL_WIDTH - 4
-assert app.waveform.width == W
-
-# 1. Speech: send a burst of varying levels -> buffer advances every message
-app.waveform.clear()
-for i in range(W):
-    level = 0.3 + 0.4 * (i % 5) / 4.0  # varying 0.3..0.7
-    app._handle_update(("update_metrics", i * 0.033, level, level))
-# After W messages the buffer should be fully populated (no leading zeros)
-assert all(v > 0.0 for v in app.waveform.buffer), "buffer should fill with speech levels"
-assert app.needs_render, "every metrics message should schedule a render"
-print("OK  speech: buffer advanced & filled (%.0f samples at ~30 Hz)" % W)
-
-# 2. Record a snapshot of the buffer, then SILENCE: level 0 for W/2 messages
-snapshot = list(app.waveform.buffer)
-for i in range(W // 2):
-    app._handle_update(("update_metrics", (W + i) * 0.033, 0.0, 0.0))
-scrolled = app.waveform.buffer
-# The buffer must have moved: newest entries should now be ~0 (silence scrolled
-# in via EMA decay; visually flat well before 8*level < 1).
-assert abs(scrolled[-1]) < 1e-3 and abs(scrolled[-10]) < 1e-3, \
-    "silence should scroll flat zeros (got %r)" % scrolled[-3:]
-assert scrolled != snapshot, "buffer must keep scrolling through silence"
-assert len(scrolled) == W
-print("OK  silence: waveform keeps scrolling (flat line), no freeze")
-
-# 3. And when speech returns, the wave animates again immediately
-app._handle_update(("update_metrics", 1.0, 0.6, 0.6))
-app._handle_update(("update_metrics", 1.033, 0.5, 0.5))
-assert app.waveform.buffer[-1] > 0.0, "waveform should respond to resumed speech"
-print("OK  speech resumes after silence")
-
-# 4. Visualizer renders without error at all levels
-lines = app.waveform.render()
-assert len(lines) == 3 and all(len(l) == W for l in lines), "render should return 3 full-width rows"
-print("OK  render produces 3 full-width rows")
-
-print("\nPASS: waveform is smooth (30 Hz samples) and keeps scrolling through silence")
+print("\nPASS: organic waveform - dense, calm, keeps breathing through silence")

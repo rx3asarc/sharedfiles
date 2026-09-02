@@ -1,5 +1,6 @@
 """ASCII Components - Rendering logic for UI sections."""
 
+import math
 import threading
 from typing import List, Tuple
 from datetime import datetime
@@ -122,89 +123,86 @@ class ASCIIStatusPanel:
 
 
 class ASCIIWaveformVisualizer:
-    """Renders waveform using diagonal Unicode characters for smooth sine-wave visualization."""
+    """Renders an organic, ChatGPT/Gemini-style waveform that swells with voice.
 
-    def __init__(self, width: int = 80, smoothing: float = 0.5):
+    The wave does NOT scroll horizontally (that looked fast and low-res).
+    Instead it draws a dense, symmetric, filled waveform that breathes in
+    place: your voice envelope modulates the height of several smooth humps,
+    and a slow phase drift keeps the shape gently travelling so it always
+    feels alive - even during silences.
+    """
+
+    def __init__(self, width: int = 80, smoothing: float = 0.35, field_height: int = 5):
         """Initialize waveform visualizer.
 
         Args:
             width: Width of waveform in characters
-            smoothing: Smoothing factor for EMA (0.0 = no smoothing, 1.0 = fully static)
+            smoothing: EMA factor (0.0 = instant, 1.0 = fully static)
+            field_height: Total interior rows (symmetric around center)
         """
-        self.width = width
-        self.buffer = [0.0] * width
-        self.smoothing = smoothing  # EMA factor: new_smoothed = smoothing * old + (1-smoothing) * new
+        self.width = max(width, 8)
+        self.smoothing = smoothing
+        self.field_height = max(3, field_height)
+        self.center = (self.field_height - 1) // 2  # symmetric axis row
         self.smoothed_level = 0.0
+        self.phase = 0.0
+        # 2.5 humps across the width, drifting slowly (one cycle ~4s at 30fps)
+        self.hump_count = 2.5
+        self.phase_step = (2 * math.pi) / 120.0
 
     def clear(self):
-        """Clear the waveform buffer (reset to all zeros)."""
-        self.buffer = [0.0] * self.width
+        """Reset waveform state."""
         self.smoothed_level = 0.0
+        self.phase = 0.0
 
     def update(self, level: float):
-        """Add new level value to buffer (smoothed).
-
-        Args:
-            level: Audio level (0.0 to 1.0)
-        """
-        # Apply EMA smoothing to reduce jitter
+        """Feed a new audio level (0.0 to 1.0)."""
+        level = max(0.0, min(1.0, level))
+        # EMA smoothing (snappy but stable)
         self.smoothed_level = self.smoothing * self.smoothed_level + (1.0 - self.smoothing) * level
-        # Shift buffer left and add smoothed value
-        self.buffer = self.buffer[1:] + [self.smoothed_level]
+        # Slow phase drift keeps the shape gently moving during silence
+        self.phase = (self.phase + self.phase_step) % (2 * math.pi)
+
+    def _height_at(self, x: int) -> float:
+        """Normalized height for one column (0.0 to 1.0)."""
+        # Perceptual response: root-compress so quiet speech still shows
+        env = self.smoothed_level ** 0.6
+        # Carrier humps + gentle second-harmonic shimmer for organic texture
+        carrier = 0.5 + 0.5 * math.sin(2 * math.pi * self.hump_count * x / self.width + self.phase)
+        shimmer = 1.0 + 0.08 * math.sin(4 * math.pi * self.hump_count * x / self.width - self.phase)
+        # Baseline keeps a soft breathing line even in complete silence
+        h = (0.25 + 0.75 * env) * carrier * shimmer
+        return min(1.0, max(0.0, h))
 
     def render(self) -> List[str]:
-        """Returns 3 rows of smooth sine-wave using Unicode wave characters.
-
-        Creates pattern like: -⎽__⎽-⎻⎺⎺⎻-⎽__⎽-
+        """Render the waveform as symmetric filled rows (ChatGPT mic style).
 
         Returns:
-            List of 3 strings representing the waveform
+            List of field_height strings, each width chars long.
         """
-        lines = ['', '', '']
+        grid = [[' ' for _ in range(self.width)] for _ in range(self.field_height)]
 
-        for i, level in enumerate(self.buffer):
-            # Map level to height (0.0 to 1.0 -> 0 to 8 positions)
-            height = int(level * 8)
+        for x in range(self.width):
+            h = self._height_at(x)
+            rows = int(round(h * self.center))  # 0..center
 
-            # Create smooth sine-wave using wave characters
-            if height == 0:  # Lowest
-                lines[0] += ' '
-                lines[1] += ' '
-                lines[2] += '_'
-            elif height == 1:  # Very low
-                lines[0] += ' '
-                lines[1] += ' '
-                lines[2] += '⎽'
-            elif height == 2:  # Low
-                lines[0] += ' '
-                lines[1] += ' '
-                lines[2] += '-'
-            elif height == 3:  # Below middle
-                lines[0] += ' '
-                lines[1] += '⎽'
-                lines[2] += ' '
-            elif height == 4:  # Middle
-                lines[0] += ' '
-                lines[1] += '-'
-                lines[2] += ' '
-            elif height == 5:  # Above middle
-                lines[0] += ' '
-                lines[1] += '⎺'
-                lines[2] += ' '
-            elif height == 6:  # High
-                lines[0] += '⎻'
-                lines[1] += ' '
-                lines[2] += ' '
-            elif height == 7:  # Very high
-                lines[0] += '⎺'
-                lines[1] += ' '
-                lines[2] += ' '
-            else:  # Peak
-                lines[0] += '-'
-                lines[1] += ' '
-                lines[2] += ' '
+            if rows == 0:
+                # Just the baseline - a soft flat-ish line
+                grid[self.center][x] = '─'
+                continue
 
-        return lines
+            cell = '█' if h >= 0.55 else '▓'
+            for d in range(1, rows + 1):
+                up = self.center - d
+                down = self.center + d
+                if up >= 0:
+                    grid[up][x] = cell
+                if down < self.field_height:
+                    grid[down][x] = cell
+            # Center row denser when the wave is tall
+            grid[self.center][x] = '█' if h >= 0.35 else '─'
+
+        return [''.join(row) for row in grid]
 
 
 class ASCIIMetricsRow:
