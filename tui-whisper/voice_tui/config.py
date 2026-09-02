@@ -150,6 +150,14 @@ class Config:
             return cls.hotkey
         if any(modifier not in cls.VALID_HOTKEY_MODIFIERS for modifier in modifiers):
             return cls.hotkey
+
+        # A modifier-chord (e.g. ctrl+alt) is a valid press-and-hold hotkey
+        # even though the last part is also a modifier.
+        if key in cls.VALID_HOTKEY_MODIFIERS:
+            if all(m in cls.VALID_HOTKEY_MODIFIERS for m in parts):
+                return "+".join(parts)
+            return cls.hotkey
+
         if cls._is_valid_hotkey_key(key):
             return "+".join(modifiers + [key])
 

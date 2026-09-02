@@ -68,21 +68,25 @@ assert ctrl.reconfigured == [], "modifier press must not commit a hotkey"
 
 fk._state = {"ctrl": True, "alt": True}
 app._handle_hotkey_capture_key("alt")
-assert app.in_hotkey_capture, "alt press must not exit capture"
-assert ctrl.reconfigured == [], "second modifier must not commit (was the bug: 'ctrl+alt')"
-print("OK  modifiers alone never commit")
+# NOW: a second distinct modifier WHILE one is held commits a chord (ctrl+alt)
+assert not app.in_hotkey_capture, "second modifier with one held should commit chord"
+assert ctrl.reconfigured == ["alt+ctrl"], "expected chord, got %r" % ctrl.reconfigured
+print("OK  modifiers commit a chord (ctrl+alt), not a lone key")
 
-# Shift + real key -> commits
+# Fresh app: Shift + real key -> commits
+ctrl_k = FakeController()
+app_k = VoiceToTextASCIIApp(FakeConfig(), ctrl_k)
+app_k.in_hotkey_capture = True
 fk._state = {"shift": True}
-app._handle_hotkey_capture_key("shift")
-assert ctrl.reconfigured == [], "shift alone must not commit"
+app_k._handle_hotkey_capture_key("shift")
+assert ctrl_k.reconfigured == [], "shift alone must not commit"
 
 # Now press a real key with mods held -> commits
 fk._state = {"ctrl": True, "alt": True, "x": True}
-app._handle_hotkey_capture_key("x")
-assert ctrl.reconfigured == ["alt+ctrl+x"], "real key with mods held should commit: %r" % ctrl.reconfigured
-assert not app.in_hotkey_capture, "capture should end after commit"
-print("OK  real key with mods held commits: %r" % ctrl.reconfigured)
+app_k._handle_hotkey_capture_key("x")
+assert ctrl_k.reconfigured == ["alt+ctrl+x"], "real key with mods held should commit: %r" % ctrl_k.reconfigured
+assert not app_k.in_hotkey_capture, "capture should end after commit"
+print("OK  real key with mods held commits: %r" % ctrl_k.reconfigured)
 
 # Real key with NO mods -> does not commit, prompts
 ctrl2 = FakeController()
