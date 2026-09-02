@@ -17,11 +17,53 @@ except ImportError:
     pyperclip = None
 
 from .config import Config
-from .recorder import AudioRecorder, NoMicrophoneError, AudioRecorderError
-from .transcriber import WhisperTranscriber, ModelLoadError, TranscriberError
-from .auto_type import AutoTyper
+
+# Heavy third-party modules (numpy, sounddevice, faster-whisper) are imported
+# LAZILY inside initialize() so the TUI starts instantly. Importing them at
+# module load would block startup for seconds on first run.
 from .ascii_app import VoiceToTextASCIIApp as VoiceToTextApp
 from .fast_clipboard import copy_to_clipboard
+
+# Lazy module holders
+_recorder_mod = None
+_transcriber_mod = None
+
+def _get_recorder():
+    """Lazily import the recorder module."""
+    global _recorder_mod
+    if _recorder_mod is None:
+        from . import recorder as _recorder_mod
+    return _recorder_mod
+
+def _get_transcriber():
+    """Lazily import the transcriber module."""
+    global _transcriber_mod
+    if _transcriber_mod is None:
+        from . import transcriber as _transcriber_mod
+    return _transcriber_mod
+
+import atexit
+
+_DEBUG_BUFFER = []  # (msg,) until flush
+
+def _dbg(msg: str):
+    """Queue a debug.log line (batched - avoids per-event open/close I/O)."""
+    _DEBUG_BUFFER.append(msg)
+    if len(_DEBUG_BUFFER) >= 128:
+        _flush_debug()
+
+def _flush_debug():
+    """Flush buffered debug lines to disk once."""
+    if not _DEBUG_BUFFER:
+        return
+    try:
+        with open("debug.log", "a") as f:
+            f.write('\n'.join(_DEBUG_BUFFER) + '\n')
+    except Exception:
+        pass
+    _DEBUG_BUFFER.clear()
+
+atexit.register(_flush_debug)
 
 
 class VoiceToTextController:
@@ -35,9 +77,9 @@ class VoiceToTextController:
         """
         self.config = config
         self.app: VoiceToTextApp = None
-        self.recorder: AudioRecorder = None
-        self.transcriber: WhisperTranscriber = None
-        self.auto_typer: AutoTyper = None
+        self.recorder = None  # set in initialize() (lazy import)
+        self.transcriber = None  # set in initialize() (lazy import)
+        self.auto_typer = None  # set in initialize() (lazy import)
         self.recording_stream = None
         self.recording_start_time = 0
         self.duration_timer = None
@@ -51,7 +93,9 @@ class VoiceToTextController:
             True if initialization successful, False otherwise.
         """
         try:
-            # Initialize recorder
+            # Initialize recorder (lazy import - keeps startup fast)
+            recorder_mod = _get_recorder()
+            AudioRecorder = recorder_mod.AudioRecorder
             with open("debug.log", "a") as f:
                 f.write("Initializing microphone...\n")
             self.recorder = AudioRecorder(sample_rate=self.config.sample_rate)
@@ -59,7 +103,9 @@ class VoiceToTextController:
             with open("debug.log", "a") as f:
                 f.write(f"Microphone: {device_info['name']}\n")
 
-            # Initialize transcriber (model loads in background; UI starts instantly)
+            # Initialize transcriber (lazy import + model loads in background)
+            transcriber_mod = _get_transcriber()
+            WhisperTranscriber = transcriber_mod.WhisperTranscriber
             print(f"Queuing Whisper model '{self.config.model_name}' in background...")
             self.transcriber = WhisperTranscriber(
                 model_name=self.config.model_name,
@@ -78,8 +124,9 @@ class VoiceToTextController:
                   "(device: " + (self.config.device_type or "auto") + ", "
                   "compute: " + (self.config.compute_type or "auto") + ")")
 
-            # Initialize auto-typer
+            # Initialize auto-typer (lazy import - only when enabled)
             if self.config.auto_type:
+                from .auto_type import AutoTyper
                 self.auto_typer = AutoTyper(type_interval=self.config.type_interval)
                 if self.auto_typer.is_available:
                     print("Auto-type: enabled")
@@ -90,20 +137,12 @@ class VoiceToTextController:
 
             return True
 
-        except NoMicrophoneError as e:
+        except Exception as e:
             print(f"\nError: {e}")
             print("\nTroubleshooting:")
             print("1. Check that a microphone is connected")
             print("2. Check microphone permissions in system settings")
             print("3. Try selecting a different microphone")
-            return False
-
-        except ModelLoadError as e:
-            print(f"\nError loading model: {e}")
-            print("\nTroubleshooting:")
-            print("1. Check your internet connection (for first-time model download)")
-            print("2. Try a different model with --model flag")
-            print("3. Ensure you have enough disk space")
             return False
 
         except Exception as e:
@@ -145,14 +184,14 @@ class VoiceToTextController:
         """Start audio recording."""
         try:
             with open("debug.log", "a") as f:
-                f.write(f"start_recording() called, is_shutting_down={self.is_shutting_down}, is_recording={self.recorder.is_recording if self.recorder else 'no recorder'}\n")
+                _dbg(f"start_recording() called, is_shutting_down={self.is_shutting_down}, is_recording={self.recorder.is_recording if self.recorder else 'no recorder'}")
         except:
             pass
 
         if self.is_shutting_down:
             try:
                 with open("debug.log", "a") as f:
-                    f.write("Shutting down, aborting start_recording\n")
+                    _dbg("Shutting down, aborting start_recording")
             except:
                 pass
             return
@@ -160,7 +199,7 @@ class VoiceToTextController:
         if self.recorder.is_recording:
             try:
                 with open("debug.log", "a") as f:
-                    f.write("Already recording, ignoring start\n")
+                    _dbg("Already recording, ignoring start")
             except:
                 pass
             return
@@ -202,7 +241,7 @@ class VoiceToTextController:
         """Stop audio recording and process transcription."""
         try:
             with open("debug.log", "a") as f:
-                f.write(f"stop_recording() ENTRY, is_shutting_down={self.is_shutting_down}, is_recording={self.recorder.is_recording if self.recorder else 'no recorder'}\n")
+                _dbg(f"stop_recording() ENTRY, is_shutting_down={self.is_shutting_down}, is_recording={self.recorder.is_recording if self.recorder else 'no recorder'}")
         except:
             pass
         if self.is_shutting_down:
@@ -211,13 +250,13 @@ class VoiceToTextController:
         try:
             if not self.recorder.is_recording:
                 with open("debug.log", "a") as f:
-                    f.write("stop_recording but recorder not recording - ignoring\n")
+                    _dbg("stop_recording but recorder not recording - ignoring")
                 return
 
             # Stop duration timer
             self._stop_duration_timer()
             with open("debug.log", "a") as f:
-                f.write("Duration timer stopped\n")
+                _dbg("Duration timer stopped")
 
             # Stop recording stream
             if self.recording_stream:
@@ -225,10 +264,10 @@ class VoiceToTextController:
                     self.recording_stream.stop()
                     self.recording_stream.close()
                     with open("debug.log", "a") as f:
-                        f.write("Recording stream stopped and closed\n")
+                        _dbg("Recording stream stopped and closed")
                 except Exception as e:
                     with open("debug.log", "a") as f:
-                        f.write(f"Error stopping recording stream: {e}\n")
+                        _dbg(f"Error stopping recording stream: {e}")
                 finally:
                     self.recording_stream = None
 
@@ -237,17 +276,17 @@ class VoiceToTextController:
                 audio_data = self.recorder.stop_recording()
                 duration = time.time() - self.recording_start_time
                 with open("debug.log", "a") as f:
-                    f.write(f"Recording stopped: duration={duration:.3f}s, audio shape={audio_data.shape if audio_data is not None else 'None'}\n")
+                    _dbg(f"Recording stopped: duration={duration:.3f}s, audio shape={audio_data.shape if audio_data is not None else 'None'}")
             except Exception as e:
                 with open("debug.log", "a") as f:
-                    f.write(f"Error in recorder.stop_recording: {e}\n")
+                    _dbg(f"Error in recorder.stop_recording: {e}")
                 audio_data = None
                 duration = 0.0
 
             # Check minimum duration
             if duration < self.config.min_recording_duration:
                 with open("debug.log", "a") as f:
-                    f.write(f"Recording too short ({duration:.3f}s < {self.config.min_recording_duration}s), discarding\n")
+                    _dbg(f"Recording too short ({duration:.3f}s < {self.config.min_recording_duration}s), discarding")
                 if self.app:
                     self.app.call_from_thread(self.app.show_error, "Recording too short")
                     threading.Timer(2.0, lambda: self.app and self.app.call_from_thread(self.app.set_status, "idle")).start()
@@ -257,17 +296,17 @@ class VoiceToTextController:
             if self.app:
                 self.app.call_from_thread(self.app.set_status, "processing", "Transcribing...")
                 with open("debug.log", "a") as f:
-                    f.write("UI set to processing\n")
+                    _dbg("UI set to processing")
 
             # Transcribe in background thread
             t = threading.Thread(target=self._transcribe_audio, args=(audio_data,), daemon=True)
             t.start()
             with open("debug.log", "a") as f:
-                f.write(f"Transcription thread started: {t.ident}\n")
+                _dbg(f"Transcription thread started: {t.ident}")
 
         except Exception as e:
             with open("debug.log", "a") as f:
-                f.write(f"Stop recording exception: {e}\n")
+                _dbg(f"Stop recording exception: {e}")
                 import traceback
                 traceback.print_exc(file=f)
             if self.app:
@@ -281,16 +320,16 @@ class VoiceToTextController:
         """
         try:
             with open("debug.log", "a") as f:
-                f.write("_transcribe_audio: starting transcription\n")
+                _dbg("_transcribe_audio: starting transcription")
             # Transcribe with local formatting (sub-millisecond, no LLM)
             # skip_formatting=False applies local formatter; LLM formatter disabled in config
             text = self.transcriber.transcribe(audio_data, self.config.sample_rate, skip_formatting=False)
             with open("debug.log", "a") as f:
-                f.write(f"_transcribe_audio: got text (len={len(text) if text else 0})\n")
+                _dbg(f"_transcribe_audio: got text (len={len(text) if text else 0})")
 
             if not text:
                 with open("debug.log", "a") as f:
-                    f.write("_transcribe_audio: no text detected\n")
+                    _dbg("_transcribe_audio: no text detected")
                 if self.app:
                     self.app.call_from_thread(self.app.show_error, "No speech detected")
                     threading.Timer(2.0, lambda: self.app and self.app.call_from_thread(self.app.set_status, "idle")).start()
@@ -324,7 +363,7 @@ class VoiceToTextController:
             # Update UI immediately
             if self.app:
                 with open("debug.log", "a") as f:
-                    f.write("_transcribe_audio: updating UI with set_transcription\n")
+                    _dbg("_transcribe_audio: updating UI with set_transcription")
                 self.app.call_from_thread(self.app.set_transcription, text, copied=copied, auto_typed=False)
 
             # Auto-type text if enabled (legacy, not recommended)
@@ -333,16 +372,18 @@ class VoiceToTextController:
                     f.write("_transcribe_audio: auto-type enabled (legacy), starting async type\n")
                 self.auto_typer.type_text_async(text, lambda success: None)
 
-        except TranscriberError as e:
-            with open("debug.log", "a") as f:
-                f.write(f"_transcribe_audio: TranscriberError: {e}\n")
-            if self.app:
-                self.app.call_from_thread(self.app.show_error, f"Transcription failed: {e}")
         except Exception as e:
-            with open("debug.log", "a") as f:
-                f.write(f"_transcribe_audio: Unexpected error: {e}\n")
-            if self.app:
-                self.app.call_from_thread(self.app.show_error, f"Unexpected error: {e}")
+            from .transcriber import TranscriberError
+            if isinstance(e, TranscriberError):
+                with open("debug.log", "a") as f:
+                    _dbg(f"_transcribe_audio: TranscriberError: {e}")
+                if self.app:
+                    self.app.call_from_thread(self.app.show_error, f"Transcription failed: {e}")
+            else:
+                with open("debug.log", "a") as f:
+                    _dbg(f"_transcribe_audio: Unexpected error: {e}")
+                if self.app:
+                    self.app.call_from_thread(self.app.show_error, f"Unexpected error: {e}")
 
     def _format_and_update(self, raw_text: str):
         """Background thread to format and update display.
@@ -368,18 +409,13 @@ class VoiceToTextController:
                 # Get real-time audio level and peak from microphone
                 audio_level = self.recorder.get_current_level()
                 peak_level = self.recorder.get_peak_level()
-                # Rate-limit debug logging to ~1/sec (was every ~33ms per poll)
+                # Rate-limit + buffer debug logging (no per-poll disk I/O)
                 if not hasattr(self, "_last_dur_log") or abs(duration - self._last_dur_log) >= 1.0:
-                    try:
-                        with open("debug.log", "a") as f:
-                            f.write(f"_update_duration: dur={duration:.2f}, level={audio_level:.2f}, peak={peak_level:.2f}\n")
-                    except:
-                        pass
+                    _dbg(f"_update_duration: dur={duration:.2f}, level={audio_level:.2f}, peak={peak_level:.2f}")
                     self._last_dur_log = duration
                 self.app.call_from_thread(self.app.update_recording_metrics, duration, audio_level, peak_level)
         except Exception as e:
-            with open("debug.log", "a") as f:
-                f.write(f"_update_duration exception: {e}\n")
+            _dbg(f"_update_duration exception: {e}")
 
     def _start_duration_timer(self):
         """Start timer to update recording duration (fast poll = smooth waveform)."""
@@ -517,44 +553,32 @@ class VoiceToTextController:
             pass
         # Guard against multiple presses
         if self._hotkey_active:
-            try:
-                with open("debug.log", "a") as f:
-                    f.write("Already recording, ignoring extra press\n")
-            except:
-                pass
+            _dbg("Already recording, ignoring extra press")
             return
         self._hotkey_active = True
         try:
             self.start_recording()
         except Exception as e:
-            with open("debug.log", "a") as f:
-                f.write(f"start_recording exception in press handler: {e}\n")
+            _dbg(f"start_recording exception in press handler: {e}")
             self._hotkey_active = False  # reset on error
 
     def _on_hotkey_release(self):
         """Handle hotkey release event (triggered by add_hotkey or hook)."""
-        try:
-            with open("debug.log", "a") as f:
-                f.write("Hotkey release event (handler entry)\n")
-        except:
-            pass
+        _dbg("Hotkey release event (handler entry)")
         # Reset flag regardless
         was_active = self._hotkey_active
         self._hotkey_active = False
         if was_active and self.recorder and self.recorder.is_recording:
             try:
-                with open("debug.log", "a") as f:
-                    f.write("Stopping recording on release - calling stop_recording()\n")
+                _dbg("Stopping recording on release - calling stop_recording()")
                 self.stop_recording()
             except Exception as e:
-                with open("debug.log", "a") as f:
-                    f.write(f"Exception during stop_recording: {e}\n")
-                    import traceback
-                    traceback.print_exc(file=open("debug.log", "a"))
+                _dbg(f"Exception during stop_recording: {e}")
+                import traceback
+                traceback.print_exc(file=open("debug.log", "a"))
         else:
             try:
-                with open("debug.log", "a") as f:
-                    f.write("Release ignored (was_active=%s, recorder=%s, is_recording=%s)\n" % (was_active, self.recorder is not None, self.recorder.is_recording if self.recorder else 'n/a'))
+                _dbg("Release ignored (was_active=%s, recorder=%s, is_recording=%s)" % (was_active, self.recorder is not None, self.recorder.is_recording if self.recorder else 'n/a'))
             except:
                 pass
 
@@ -585,6 +609,7 @@ class VoiceToTextController:
     def shutdown(self):
         """Clean up resources."""
         self.is_shutting_down = True
+        _flush_debug()  # persist batched debug logs on quit
 
         # Stop recording if active
         if self.recorder and self.recorder.is_recording:
