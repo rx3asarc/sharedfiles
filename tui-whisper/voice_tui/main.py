@@ -368,22 +368,25 @@ class VoiceToTextController:
                 # Get real-time audio level and peak from microphone
                 audio_level = self.recorder.get_current_level()
                 peak_level = self.recorder.get_peak_level()
-                try:
-                    with open("debug.log", "a") as f:
-                        f.write(f"_update_duration: dur={duration:.2f}, level={audio_level:.2f}, peak={peak_level:.2f}\n")
-                except:
-                    pass
+                # Rate-limit debug logging to ~1/sec (was every ~33ms per poll)
+                if not hasattr(self, "_last_dur_log") or abs(duration - self._last_dur_log) >= 1.0:
+                    try:
+                        with open("debug.log", "a") as f:
+                            f.write(f"_update_duration: dur={duration:.2f}, level={audio_level:.2f}, peak={peak_level:.2f}\n")
+                    except:
+                        pass
+                    self._last_dur_log = duration
                 self.app.call_from_thread(self.app.update_recording_metrics, duration, audio_level, peak_level)
         except Exception as e:
             with open("debug.log", "a") as f:
                 f.write(f"_update_duration exception: {e}\n")
 
     def _start_duration_timer(self):
-        """Start timer to update recording duration."""
+        """Start timer to update recording duration (fast poll = smooth waveform)."""
         def timer_loop():
             while self.recorder and self.recorder.is_recording and not self.is_shutting_down:
                 self._update_duration()
-                time.sleep(0.1)
+                time.sleep(0.033)  # ~30 Hz -> more frames per second for the waveform
 
         self.duration_timer = threading.Thread(target=timer_loop, daemon=True)
         self.duration_timer.start()
