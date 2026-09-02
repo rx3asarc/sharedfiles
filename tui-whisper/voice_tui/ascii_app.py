@@ -105,6 +105,7 @@ class VoiceToTextASCIIApp:
         self.settings_edit_index = -1
         self.in_hotkey_capture = False
         self.settings_message = ""
+        self._settings_message_at = 0.0  # monotonic ts for auto-expire
         self._pending_modifier_key = None  # first modifier held during capture
 
         # Settings definitions: (display_name, attribute_name, type, [choices if type='choice'])
@@ -334,6 +335,13 @@ class VoiceToTextASCIIApp:
             with open("debug.log", "a") as f:
                 f.write(f"Keyboard listener fatal error: {e}\n")
 
+    def _set_settings_message(self, msg: str):
+        """Show a transient footer message in settings (auto-expires ~2.5s)."""
+        import time as _t
+        self.settings_message = msg
+        self._settings_message_at = _t.monotonic()
+        self.needs_render = True
+
     def _process_key_in_main_loop(self, key):
         """Route keypress to appropriate handler based on current mode."""
         # Global quit (works in any mode)
@@ -424,22 +432,22 @@ class VoiceToTextASCIIApp:
                 if attr_name == 'hotkey':
                     try:
                         self.controller.reconfigure_hotkey(raw)
-                        self.settings_message = f"{setting[0]} saved."
+                        self._set_settings_message(f"{setting[0]} saved.")
                     except Exception as e:
-                        self.settings_message = f"Save error: {e}"
+                        self._set_settings_message(f"Save error: {e}")
                 else:
                     setattr(self.controller.config, attr_name, new_value)
                     try:
                         self.controller.config.save()
-                        self.settings_message = f"{setting[0]} saved."
+                        self._set_settings_message(f"{setting[0]} saved.")
                     except Exception as e:
-                        self.settings_message = f"Save error: {e}"
+                        self._set_settings_message(f"Save error: {e}")
                 # Exit editing mode
                 self.settings_editing = False
                 self.settings_edit_buffer = ""
                 self.needs_render = True
             except ValueError:
-                self.settings_message = f"Invalid value for {setting[0]}"
+                self._set_settings_message(f"Invalid value for {setting[0]}")
                 self.needs_render = True
         elif key == 'backspace':  # Backspace
             self.settings_edit_buffer = self.settings_edit_buffer[:-1]
@@ -454,7 +462,7 @@ class VoiceToTextASCIIApp:
                 current_buf = self.settings_edit_buffer.strip().lower()
                 is_true = current_buf in ('true', '1', 'yes', 'on')
                 self.settings_edit_buffer = 'False' if is_true else 'True'
-                self.settings_message = f"{setting[0]}: Tab cycles. Enter to save."
+                self._set_settings_message(f"{setting[0]}: Tab cycles. Enter to save.")
                 self.needs_render = True
             elif type_ == 'choice' and choices:
                 current = self.settings_edit_buffer.strip()
@@ -464,10 +472,10 @@ class VoiceToTextASCIIApp:
                     idx = -1
                 nxt = choices[(idx + 1) % len(choices)]
                 self.settings_edit_buffer = str(nxt)
-                self.settings_message = f"{setting[0]}: Tab cycles. Enter to save."
+                self._set_settings_message(f"{setting[0]}: Tab cycles. Enter to save.")
                 self.needs_render = True
             else:
-                self.settings_message = f"Tab not available for {setting[0]} (type text)"
+                self._set_settings_message(f"Tab not available for {setting[0]} (type text)")
                 self.needs_render = True
         else:
             # Printable characters and space
@@ -494,7 +502,7 @@ class VoiceToTextASCIIApp:
         """
         if key == 'esc':  # Cancel
             self.in_hotkey_capture = False
-            self.settings_message = "Hotkey change canceled"
+            self._set_settings_message("Hotkey change canceled")
             self.needs_render = True
             return
 
@@ -530,7 +538,7 @@ class VoiceToTextASCIIApp:
             if self._pending_modifier_key is None:
                 # First modifier held - record it and wait for another or a key
                 self._pending_modifier_key = normalized_key
-                self.settings_message = "Keep holding - add another modifier or press a key..."
+                self._set_settings_message("Keep holding - add another modifier or press a key...")
                 self.needs_render = True
                 return
             if normalized_key != self._pending_modifier_key and len(pressed_mods) >= 1:
@@ -540,7 +548,7 @@ class VoiceToTextASCIIApp:
                 self.controller.reconfigure_hotkey(chord)
                 self.in_hotkey_capture = False
                 save_err = getattr(self.controller, "_last_save_error", None)
-                self.settings_message = (f"Hotkey set (not saved: {save_err})" if save_err
+                self._set_settings_message(f"Hotkey set (not saved: {save_err})" if save_err
                                          else f"Hotkey set to {chord}")
                 self.needs_render = True
                 return
@@ -553,7 +561,7 @@ class VoiceToTextASCIIApp:
 
         # A real key without any modifier held isn't a hotkey - prompt
         if not pressed_mods:
-            self.settings_message = "Hold a modifier (e.g. Ctrl+Alt) while pressing a key"
+            self._set_settings_message("Hold a modifier (e.g. Ctrl+Alt) while pressing a key")
             self.needs_render = True
             return
 
@@ -566,9 +574,9 @@ class VoiceToTextASCIIApp:
         self.in_hotkey_capture = False
         save_err = getattr(self.controller, "_last_save_error", None)
         if save_err:
-            self.settings_message = f"Hotkey set (not saved: {save_err})"
+            self._set_settings_message(f"Hotkey set (not saved: {save_err})")
         else:
-            self.settings_message = f"Hotkey set to {new_hotkey}"
+            self._set_settings_message(f"Hotkey set to {new_hotkey}")
         self.needs_render = True
 
     def _cleanup_terminal(self):
@@ -817,8 +825,14 @@ class VoiceToTextASCIIApp:
             setting = self.settings_defs[i]
             display_name = setting[0]
             attr_name = setting[1]
-            current_value = getattr(self.controller.config, attr_name)
-            line = f"  {display_name}: {current_value}"
+
+            # While editing this row, show the LIVE edit buffer (what Tab
+            # changes) so the True/False toggle is visible BEFORE Enter.
+            if self.settings_editing and i == self.settings_edit_index:
+                shown_value = self.settings_edit_buffer or None
+            else:
+                shown_value = getattr(self.controller.config, attr_name)
+            line = f"  {display_name}: {shown_value}"
             if i == self.settings_cursor:
                 # Highlight with > prefix
                 if len(line) >= 2:
@@ -832,16 +846,23 @@ class VoiceToTextASCIIApp:
         # Draw footer separator line
         self.buffer.write_text(0, footer_separator_row, '-' * self.layout.UI_WIDTH)
 
-        # Show temporary message or instructions on footer row
+        # Show temporary message or instructions on footer row (auto-expire)
         if self.settings_message:
-            self.buffer.write_text(2, footer_row, self.settings_message[:self.layout.UI_WIDTH-4])
-        elif self.in_hotkey_capture:
-            prompt = "Press new hotkey (modifier+key), Esc to cancel"
-            self.buffer.write_text(2, footer_row, prompt[:self.layout.UI_WIDTH-4])
-        elif self.settings_editing:
-            setting = self.settings_defs[self.settings_edit_index]
-            prompt = f"Enter new value for {setting[0]}: {self.settings_edit_buffer}"
-            self.buffer.write_text(2, footer_row, prompt[:self.layout.UI_WIDTH-4])
-        else:
-            instructions = "W/S: Move   E: Edit   Esc: Exit"
-            self.buffer.write_text(2, footer_row, instructions[:self.layout.UI_WIDTH-4])
+            import time as _t
+            if _t.monotonic() - getattr(self, "_settings_message_at", 0.0) <= 2.5:
+                self.buffer.write_text(2, footer_row, self.settings_message[:self.layout.UI_WIDTH-4])
+            else:
+                # expired - fall through to instructions
+                self.settings_message = ""
+                self.needs_render = True
+        if not self.settings_message:
+            if self.in_hotkey_capture:
+                prompt = "Press new hotkey (modifier+key), Esc to cancel"
+                self.buffer.write_text(2, footer_row, prompt[:self.layout.UI_WIDTH-4])
+            elif self.settings_editing:
+                setting = self.settings_defs[self.settings_edit_index]
+                prompt = f"Enter new value for {setting[0]}: {self.settings_edit_buffer}"
+                self.buffer.write_text(2, footer_row, prompt[:self.layout.UI_WIDTH-4])
+            else:
+                instructions = "W/S: Move   E: Edit   Esc: Exit"
+                self.buffer.write_text(2, footer_row, instructions[:self.layout.UI_WIDTH-4])
