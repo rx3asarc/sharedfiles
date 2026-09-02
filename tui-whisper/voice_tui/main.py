@@ -577,15 +577,50 @@ class VoiceToTextController:
             _dbg(f"start_recording exception in press handler: {e}")
             self._hotkey_active = False  # reset on error
 
+    def _confirm_hotkey_released(self) -> bool:
+        """Check if the hotkey's key and modifiers are ALL actually released.
+
+        Windows 'keyboard' can emit a spurious 'up' for the hotkey character
+        during key-repeat or a modifier flicker even while the user is still
+        holding the whole combo. Only a real release (key up AND no modifiers
+        pressed for a beat) should end the recording.
+        """
+        if keyboard is None:
+            return False
+        try:
+            key = self._hotkey_key
+            if not key:
+                return False
+            # The key itself must not be pressed
+            if keyboard.is_pressed(key):
+                return False
+            # And none of the required modifiers may still be pressed
+            for mod in self._hotkey_modifiers or set():
+                if keyboard.is_pressed(mod):
+                    return False
+            return True
+        except Exception:
+            # If the check fails, fall back to treating it as a release
+            return True
+
     def _on_hotkey_release(self):
-        """Handle hotkey release event (triggered by add_hotkey or hook)."""
+        """Handle hotkey release event (triggered by add_hotkey or hook).
+
+        Only a CONFIRMED release (key + modifiers all actually up) stops the
+        recording; spurious 'up' events during a held key are debounced.
+        """
         _dbg("Hotkey release event (handler entry)")
-        # Reset flag regardless
+
+        # If the combo is still physically held, this is a repeat/artifact - ignore
+        if not self._confirm_hotkey_released():
+            _dbg("  release ignored: combo still held (spurious up)")
+            return
+
         was_active = self._hotkey_active
         self._hotkey_active = False
         if was_active and self.recorder and self.recorder.is_recording:
             try:
-                _dbg("Stopping recording on release - calling stop_recording()")
+                _dbg("Stopping recording on confirmed release - calling stop_recording()")
                 self.stop_recording()
             except Exception as e:
                 _dbg(f"Exception during stop_recording: {e}")
