@@ -1,9 +1,11 @@
 """Whisper transcription module using faster-whisper."""
 
+import threading
+
 import numpy as np
 import re
 from faster_whisper import WhisperModel
-from typing import Optional
+from typing import Optional, Callable
 from .formatter import SmartFormatter, FormatterError
 
 
@@ -50,6 +52,14 @@ class WhisperTranscriber:
         self.compute_type = compute_type
         self._model: Optional[WhisperModel] = None
 
+        # Background-load state: the model is NOT loaded here so the TUI
+        # can start instantly. start_background_load() loads it in a thread;
+        # transcribe() blocks on _load_event until it is ready.
+        self._load_event = threading.Event()
+        self._load_lock = threading.Lock()
+        self._load_started = False
+        self._load_error: Optional[Exception] = None
+
         # Smart formatting setup
         self.use_smart_formatting = use_smart_formatting
         self.formatter: Optional[SmartFormatter] = None
@@ -61,11 +71,11 @@ class WhisperTranscriber:
                 print(f"Warning: Failed to initialize smart formatter: {e}")
                 self.formatter = None
 
-        # Load model on initialization (deferred loading would hurt transcription latency)
-        self.load_model()
+        # NOTE: model loading is deferred to start_background_load()/transcribe()
+        # so application startup is not blocked by model load time.
 
     def load_model(self) -> None:
-        """Load the Whisper model.
+        """Load the Whisper model (blocking).
 
         Raises:
             ModelLoadError: If model loading fails.
@@ -95,6 +105,56 @@ class WhisperTranscriber:
         except Exception as e:
             raise ModelLoadError(f"Failed to load model '{self.model_name}': {e}")
 
+    def start_background_load(self, on_loaded: Optional[Callable] = None,
+                              on_error: Optional[Callable] = None) -> None:
+        """Load the model in a daemon thread so the TUI starts instantly.
+
+        Args:
+            on_loaded: Optional callback invoked (no args) after the model loads.
+            on_error: Optional callback invoked with the exception if loading fails.
+        """
+        with self._load_lock:
+            if self._load_started:
+                return
+            self._load_started = True
+
+        def _do_load():
+            try:
+                self.load_model()
+                self._load_event.set()
+                if on_loaded:
+                    try:
+                        on_loaded()
+                    except Exception:
+                        pass
+            except Exception as e:
+                self._load_error = e
+                self._load_event.set()
+                if on_error:
+                    try:
+                        on_error(e)
+                    except Exception:
+                        pass
+
+        threading.Thread(target=_do_load, name="whisper-model-load", daemon=True).start()
+
+    def ensure_loaded(self) -> None:
+        """Block until the model is ready, loading synchronously if needed.
+
+        Raises:
+            TranscriberError: If a background load failed.
+            ModelLoadError: If a synchronous load fails.
+        """
+        if self._model is not None:
+            return
+        if self._load_started:
+            self._load_event.wait()
+            if self._load_error is not None:
+                raise TranscriberError(f"Model failed to load: {self._load_error}")
+            return
+        # No background load was started (e.g. tests/direct use): load now.
+        self.load_model()
+
     def transcribe(self, audio: np.ndarray, sample_rate: int = 16000, skip_formatting: bool = False) -> str:
         """Transcribe audio to text.
 
@@ -110,7 +170,7 @@ class WhisperTranscriber:
             TranscriberError: If transcription fails.
         """
         if self._model is None:
-            raise TranscriberError("Model not loaded. Call load_model() first.")
+            self.ensure_loaded()
 
         if len(audio) == 0:
             return ""

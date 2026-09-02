@@ -59,9 +59,8 @@ class VoiceToTextController:
             with open("debug.log", "a") as f:
                 f.write(f"Microphone: {device_info['name']}\n")
 
-            # Initialize transcriber
-            print(f"Loading Whisper model '{self.config.model_name}'...")
-            print("This may take a moment on first run (downloading model)...")
+            # Initialize transcriber (model loads in background; UI starts instantly)
+            print(f"Queuing Whisper model '{self.config.model_name}' in background...")
             self.transcriber = WhisperTranscriber(
                 model_name=self.config.model_name,
                 language=self.config.language,
@@ -71,10 +70,13 @@ class VoiceToTextController:
                 openrouter_api_key=self.config.openrouter_api_key,
                 openrouter_model=self.config.openrouter_model
             )
-            model_info = self.transcriber.get_model_info()
-            print(f"Model loaded: {model_info['model_name']} "
-                  f"(device: {model_info['device']}, "
-                  f"compute: {model_info['compute_type']})")
+            self.transcriber.start_background_load(
+                on_loaded=self._on_model_loaded,
+                on_error=self._on_model_load_error
+            )
+            print(f"Model '{self.config.model_name}' loading in background "
+                  "(device: " + (self.config.device_type or "auto") + ", "
+                  "compute: " + (self.config.compute_type or "auto") + ")")
 
             # Initialize auto-typer
             if self.config.auto_type:
@@ -107,6 +109,37 @@ class VoiceToTextController:
         except Exception as e:
             print(f"\nUnexpected error during initialization: {e}")
             return False
+
+    def _on_model_loaded(self):
+        """Called from the background model-load thread when the model is ready."""
+        if not self.app:
+            return
+        try:
+            # Don't stomp on an in-progress recording/transcription status.
+            status = getattr(self.app, "current_status", "idle")
+            if status in ("recording", "processing"):
+                return
+            self.app.call_from_thread(
+                self.app.set_status, "idle",
+                f"Model ready ({self.config.model_name})"
+            )
+        except Exception:
+            pass
+
+    def _on_model_load_error(self, exc):
+        """Called from the background model-load thread if loading fails."""
+        try:
+            with open("debug.log", "a") as f:
+                f.write(f"Background model load failed: {exc}\n")
+        except:
+            pass
+        if self.app:
+            try:
+                self.app.call_from_thread(
+                    self.app.show_error, f"Model load failed: {exc}"
+                )
+            except Exception:
+                pass
 
     def start_recording(self):
         """Start audio recording."""
@@ -529,6 +562,10 @@ class VoiceToTextController:
             config=self.config,
             controller=self
         )
+
+        # Show model warm-up state immediately (load happens in background)
+        if not self.transcriber.is_loaded:
+            self.app.set_status("idle", "Loading model...")
 
         # Setup hotkey in background
         hotkey_ready = self.setup_hotkey()
