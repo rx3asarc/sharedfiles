@@ -42,7 +42,7 @@ class FakeController:
 
 # --- Direct component tests ---
 W = 60
-vis = ASCIIWaveformVisualizer(width=W, smoothing=0.2, field_height=5)
+vis = ASCIIWaveformVisualizer(width=W, attack=0.5, release=0.07, field_height=5)
 assert vis.field_height == 5 and vis.center == 2
 
 def count_filled(vis):
@@ -87,6 +87,20 @@ for _ in range(8):
 mid_high = count_filled(vis)
 assert mid_low <= mid_high, "waveform should grow monotonically with level"
 print("OK  level response monotonic (%d -> %d)" % (mid_low, mid_high))
+
+# Attack/release (direction A): grow fast, settle slowly
+ar = ASCIIWaveformVisualizer(width=W, attack=0.5, release=0.07, field_height=5)
+ar.clear()
+ar.update(0.9)  # one loud frame
+assert ar.smoothed_level > 0.3, "attack should rise fast (%f)" % ar.smoothed_level
+loud = ar.smoothed_level
+ar.update(0.0)  # one silence frame
+assert ar.smoothed_level > loud * 0.8, \
+    "release should keep most of the height after one frame (%f vs %f)" % (ar.smoothed_level, loud)
+for _ in range(60):
+    ar.update(0.0)
+assert ar.smoothed_level < 0.15, "release should eventually settle toward silence"
+print("OK  attack/release: rises fast, settle is slow and gradual")
 
 # Render integrity: symmetric rows, full width
 rows = vis.render()

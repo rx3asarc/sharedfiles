@@ -50,10 +50,12 @@ class VoiceToTextASCIIApp:
 
         # Components
         self.status_panel = ASCIIStatusPanel(hotkey=self.config.hotkey)
-        # Waveform with lighter smoothing (0.35 = responsive; was 0.7 = sluggish)
+        # Waveform with attack/release smoothing (A): grows fast with voice,
+        # settles slowly on pause - no jumpy expansion/contraction
         self.waveform = ASCIIWaveformVisualizer(
             width=self.layout.PANEL_WIDTH - 4,
-            smoothing=0.35,
+            attack=0.5,
+            release=0.07,
             field_height=self.layout.WAVEFORM_HEIGHT - 2
         )
         self.metrics = ASCIIMetricsRow()
@@ -516,6 +518,8 @@ class VoiceToTextASCIIApp:
             # Update component sizes
             self.waveform = ASCIIWaveformVisualizer(
                 width=self.layout.PANEL_WIDTH - 4,
+                attack=0.5,
+                release=0.07,
                 field_height=self.layout.WAVEFORM_HEIGHT - 2
             )
             self.history.max_visible = self.layout.HISTORY_HEIGHT - 2

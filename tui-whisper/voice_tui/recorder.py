@@ -32,8 +32,12 @@ class AudioRecorder:
         self._audio_data = []
         self._current_level = 0.0  # Real-time audio level
         self._peak_level = 0.0  # Peak hold level
-        self._smoothed_level = 0.0  # For exponential smoothing
-        self._smoothing_alpha = 0.3  # Exponential smoothing factor
+        self._smoothed_level = 0.0  # Envelope follower level
+
+        # Attack/release smoothing (direction A): fast rise with voice,
+        # slow gentle settle when you stop or pause.
+        self._attack_alpha = 0.50
+        self._release_alpha = 0.10
 
         # Check for microphone availability
         device_info = self.get_default_device()
@@ -124,13 +128,19 @@ class AudioRecorder:
                 else:
                     normalized_level = 0.0
 
-                # Noise gate - drop to 0 below -54 dB
+                # Soft noise floor: taper smoothly toward 0 below threshold
+                # instead of hard-snapping to 0 (kills the "pop" on silence).
                 if normalized_level < 0.1:
-                    normalized_level = 0.0
+                    normalized_level = normalized_level * (normalized_level / 0.1)
 
-                # Exponential smoothing (α=0.3 for smooth yet responsive)
-                self._smoothed_level = (self._smoothing_alpha * normalized_level +
-                                       (1.0 - self._smoothing_alpha) * self._smoothed_level)
+                # Attack/release smoothing (direction A): rise fast with voice,
+                # settle slowly when you stop/pause - no abrupt contractions.
+                if normalized_level > self._smoothed_level:
+                    alpha = self._attack_alpha       # fast attack
+                else:
+                    alpha = self._release_alpha      # slow release
+                self._smoothed_level = (alpha * normalized_level +
+                                       (1.0 - alpha) * self._smoothed_level)
 
                 # Peak hold with decay
                 if self._smoothed_level > self._peak_level:
