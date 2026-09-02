@@ -98,6 +98,25 @@ def filled(row): return sum(1 for ch in row if ch in ('█', '▓'))
 assert filled(rows[0]) == filled(rows[4]), "waveform must be vertically symmetric (top/bottom mirror)"
 print("OK  render: 5 rows, full width, vertically symmetric")
 
+# Single centered hump: peak height at the center column, tapering outward.
+# (Regression: previously 2.5 humps made it look like 3 separate waveforms.)
+vis.clear()
+for _ in range(12):
+    vis.update(0.6)
+heights = vis.render()
+center_x = W // 2
+# No column should be taller than the center column
+center_filled = sum(1 for row in heights if row[center_x] in ('█', '▓', '─'))
+for x in range(0, center_x):
+    col_filled = sum(1 for row in heights if row[x] in ('█', '▓', '─'))
+    assert col_filled <= center_filled, \
+        "outer column %d taller than center - should be a single centered hump" % x
+# And the far edges should be visibly shorter than near-center (edges visible)
+edge_filled = sum(1 for row in heights if row[0] in ('█', '▓', '─'))
+assert edge_filled < center_filled, \
+    "waveform should reach out from center with visible edges"
+print("OK  single centered hump: peak at center, edges visible")
+
 # --- App integration (field height adapts to terminal) ---
 app = VoiceToTextASCIIApp(FakeConfig(), FakeController())
 assert app.waveform.field_height == app.layout.WAVEFORM_HEIGHT - 2
