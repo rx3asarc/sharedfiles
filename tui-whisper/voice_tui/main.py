@@ -761,6 +761,13 @@ class VoiceToTextController:
             return
         try:
             if ok:
+                # Do NOT stomp an active recording/processing status: init can
+                # finish mid-hold (heavy Windows imports ~12-14s) and must not
+                # flip the UI to "idle" while the user is still recording.
+                status = getattr(self.app, "current_status", "idle")
+                if status in ("recording", "processing"):
+                    _dbg("init done but active recording - not changing status")
+                    return
                 if self.transcriber and not self.transcriber.is_loaded:
                     self.app.call_from_thread(
                         self.app.set_status, "idle", "Loading model...")
@@ -803,9 +810,11 @@ class VoiceToTextController:
             self.app.needs_render = True
         try:
             self.config.save()
+            self._last_save_error = None
             with open("debug.log", "a") as f:
                 f.write(f"reconfigure_hotkey: saved new hotkey {new_hotkey}\n")
         except Exception as e:
+            self._last_save_error = str(e)
             with open("debug.log", "a") as f:
                 f.write(f"reconfigure_hotkey: save error: {e}\n")
         # Update parsed hotkey for hook handler
