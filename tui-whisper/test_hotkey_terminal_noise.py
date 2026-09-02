@@ -26,6 +26,21 @@ _stub_module("voice_tui.recorder", ["AudioRecorder", "NoMicrophoneError", "Audio
 _stub_module("voice_tui.transcriber", ["WhisperTranscriber", "ModelLoadError", "TranscriberError"])
 _stub_module("voice_tui.auto_type", ["AutoTyper"])
 
+# --- Fake keyboard with controllable press-state ---
+fake_keyboard = types.ModuleType("keyboard")
+fake_keyboard._state = {}
+
+def is_pressed(name):
+    if name == "control":
+        name = "ctrl"
+    return fake_keyboard._state.get(name, False)
+
+fake_keyboard.is_pressed = is_pressed
+fake_keyboard.hook = lambda cb: None
+fake_keyboard.unhook_all = lambda: None
+fake_keyboard.add_hotkey = lambda *a, **k: None
+sys.modules["keyboard"] = fake_keyboard
+
 from voice_tui.main import VoiceToTextController
 
 # --- Capture every write the handlers make to the terminal ---
@@ -67,8 +82,11 @@ try:
     ctrl.recorder = FakeRecorder()
     ctrl.start_recording = ctrl.recorder.start_recording
     ctrl.stop_recording = ctrl.recorder.stop_recording
+    ctrl._hotkey_key = "z"
+    ctrl._hotkey_modifiers = {"ctrl", "shift"}
 
-    # 1. First press (starts recording)
+    # 1. First press (starts recording) - combo held
+    fake_keyboard._state = {"ctrl": True, "shift": True, "z": True}
     ctrl._on_hotkey_press()
     assert ctrl.recorder.start_calls == 1, "first press should start recording"
     assert ctrl._hotkey_active, "controller should be active while held"
@@ -79,7 +97,14 @@ try:
     assert ctrl.recorder.start_calls == 1, "key repeats must not restart recording"
     assert ctrl.recorder.is_recording, "still recording"
 
-    # 3. Release
+    # 2b. Spurious 'up' events while STILL HELD must not cancel recording
+    for _ in range(10):
+        ctrl._on_hotkey_release()  # fake state still has combo down
+    assert ctrl.recorder.stop_calls == 0, "spurious ups must not stop recording"
+    assert ctrl.recorder.is_recording, "still recording after spurious ups"
+
+    # 3. Real release (keys now up)
+    fake_keyboard._state = {"ctrl": False, "shift": False, "z": False}
     ctrl._on_hotkey_release()
     assert ctrl.recorder.stop_calls == 1, "release should stop recording"
     assert not ctrl._hotkey_active, "controller should be inactive after release"
