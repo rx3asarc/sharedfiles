@@ -81,6 +81,10 @@ class Config:
         Returns:
             Config instance with loaded or default values.
         """
+        try:
+            import yaml
+        except ImportError:
+            yaml = None
         config_data = {}
 
         if config_path is None:
@@ -184,6 +188,10 @@ class Config:
             RuntimeError: If yaml library is not available
             IOError: If file cannot be written
         """
+        try:
+            import yaml
+        except ImportError:
+            yaml = None
         if yaml is None:
             raise RuntimeError("PyYAML is not installed. Cannot save configuration.")
 

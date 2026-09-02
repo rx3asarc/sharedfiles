@@ -161,9 +161,11 @@ class VoiceToTextASCIIApp:
                     last_frame_time = current_time
                 else:
                     # Sleep for remaining frame time (must use dynamic frame_time,
-                    # not self.frame_time, or the loop is capped at 10 FPS always)
-                    sleep_time = frame_time - elapsed if elapsed < frame_time else 0.005
-                    time.sleep(sleep_time)
+                    # not self.frame_time, or the loop is capped at 10 FPS always).
+                    # Cap sleep so quit (q) is processed promptly even at low FPS.
+                    sleep_time = min(frame_time - elapsed, 0.05)
+                    if sleep_time > 0:
+                        time.sleep(sleep_time)
 
         finally:
             self._cleanup_terminal()
