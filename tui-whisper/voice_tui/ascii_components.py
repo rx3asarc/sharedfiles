@@ -216,48 +216,82 @@ class ASCIIWaveformVisualizer:
         """
         env = self.smoothed_level ** 0.6  # root-compress: quiet speech still shows
         cx = (self.width - 1) / 2.0
-        # Sigma grows with voice: ~12% of width at silence -> ~25% at loud,
-        # so the hump surges outward from center but edges stay visible.
-        sigma = self.width * (0.12 + 0.13 * env)
+        # Sigma grows with voice: narrower at silence, wider when loud,
+        # so the hump visibly adapts to voice strength.
+        sigma = self.width * (0.10 + 0.16 * env)
         if sigma < 2.0:
             sigma = 2.0
         d = (x - cx) / sigma
         gauss = math.exp(-0.5 * d * d)
         # Faint travelling ripple - a hint of life, not separate humps
         ripple = 1.0 + 0.05 * math.sin(2 * math.pi * d * 2.0 + self.phase)
-        # Baseline 0.26 keeps a small breathing bump visible in silence
-        h = (0.26 + 0.74 * env) * gauss * ripple
+        # Baseline 0.22 keeps a small breathing bump visible in silence
+        h = (0.22 + 0.78 * env) * gauss * ripple
         return min(1.0, max(0.0, h))
 
     def render(self) -> List[str]:
-        """Render the waveform as symmetric filled rows (ChatGPT mic style).
+        """Render the waveform as a dense, symmetric hump using half-blocks.
+
+        Each character cell is two visual levels (top half + bottom half via
+        the Unicode half-block characters), so a 5-row wave shows ~11 levels
+        and a 7-row wave ~15 levels - far more nuance than the old 3-5 chunky
+        levels, while using the same terminal rows.
 
         Returns:
             List of field_height strings, each width chars long.
         """
-        grid = [[' ' for _ in range(self.width)] for _ in range(self.field_height)]
+        F = self.field_height
+        c = self.center
+        half_side = F  # half-strips per side (e.g. 5 for a 5-row field)
+        # half-fill per column: top_fill[row] and bottom_fill[row] booleans
+        top = [False] * F
+        bottom = [False] * F
+        rows = [[' ' for _ in range(self.width)] for _ in range(F)]
 
         for x in range(self.width):
             h = self._height_at(x)
-            rows = int(round(h * self.center))  # 0..center
+            n = int(round(h * half_side))  # half-levels above/below midline
 
-            if rows == 0:
-                # Just the baseline - a soft flat-ish line
-                grid[self.center][x] = '─'
+            if n <= 0:
+                # soft flat baseline at the midline
+                rows[c][x] = '─'
                 continue
 
-            cell = '█' if h >= 0.55 else '▓'
-            for d in range(1, rows + 1):
-                up = self.center - d
-                down = self.center + d
-                if up >= 0:
-                    grid[up][x] = cell
-                if down < self.field_height:
-                    grid[down][x] = cell
-            # Center row denser when the wave is tall
-            grid[self.center][x] = '█' if h >= 0.35 else '─'
+            # Fill n half-strips above the midline, n below (symmetric)
+            for k in range(1, n + 1):
+                # above: k=1 -> row c top, k=2 -> row c-1 bottom, ...
+                if k % 2 == 1:
+                    r = c - (k - 1) // 2
+                    if r >= 0:
+                        top[r] = True
+                else:
+                    r = c - k // 2
+                    if r >= 0:
+                        bottom[r] = True
+                # below: k=1 -> row c bottom, k=2 -> row c+1 top, ...
+                if k % 2 == 1:
+                    r = c + (k - 1) // 2
+                    if r < F:
+                        bottom[r] = True
+                else:
+                    r = c + k // 2
+                    if r < F:
+                        top[r] = True
 
-        return [''.join(row) for row in grid]
+            # Render the column from the half-fill flags
+            for r in range(F):
+                t, b = top[r], bottom[r]
+                if t and b:
+                    rows[r][x] = '█'
+                elif t:
+                    rows[r][x] = '▀'
+                elif b:
+                    rows[r][x] = '▄'
+                # reset flags for next column
+                top[r] = False
+                bottom[r] = False
+
+        return [''.join(row) for row in rows]
 
 
 class ASCIIMetricsRow:

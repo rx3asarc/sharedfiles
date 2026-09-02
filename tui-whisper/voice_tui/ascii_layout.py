@@ -67,8 +67,14 @@ class LayoutSpec:
         self.STATUS_PANEL_END = self.STATUS_PANEL_START + self.STATUS_PANEL_HEIGHT
 
         # Waveform section (only visible during recording)
-        # Taller on roomy terminals -> denser, ChatGPT-style waveform
-        self.WAVEFORM_HEIGHT = 7 if self.UI_HEIGHT >= 32 else 5  # including border
+        # Taller on roomy terminals -> denser waveform; each char row is 2
+        # half-block levels, so 9 rows = 17 levels, 7 rows = 15, 5 rows = 11.
+        if self.UI_HEIGHT >= 38:
+            self.WAVEFORM_HEIGHT = 9  # including border
+        elif self.UI_HEIGHT >= 32:
+            self.WAVEFORM_HEIGHT = 7  # including border
+        else:
+            self.WAVEFORM_HEIGHT = 5  # including border (small screens)
         self.WAVEFORM_START = self.STATUS_PANEL_END + 1
         self.WAVEFORM_END = self.WAVEFORM_START + self.WAVEFORM_HEIGHT
 
