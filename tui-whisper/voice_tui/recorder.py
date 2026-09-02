@@ -33,6 +33,8 @@ class AudioRecorder:
         self._current_level = 0.0  # Real-time audio level
         self._peak_level = 0.0  # Peak hold level
         self._smoothed_level = 0.0  # Envelope follower level
+        self._last_callback_status = ""
+        self._overflow_count = 0
 
         # Attack/release smoothing (direction A): fast rise with voice,
         # slow gentle settle when you stop or pause.
@@ -102,14 +104,20 @@ class AudioRecorder:
     def _audio_callback(self, indata, frames, time, status):
         """Callback for sounddevice to collect audio data.
 
+        MUST stay fast and I/O-free - this runs on the realtime audio thread.
+        No print() (blocking console write corrupts the TUI + causes overflow),
+        no disk writes per callback.
+
         Args:
             indata: Input audio data.
             frames: Number of frames.
             time: Time information.
-            status: Status flags.
+            status: Status flags (e.g. input overflow).
         """
+        # Flag overflow/error without touching the console (the UI surfaces it)
         if status:
-            print(f"Audio callback status: {status}")
+            self._last_callback_status = str(status)
+            self._overflow_count = getattr(self, "_overflow_count", 0) + 1
 
         if self._recording:
             self._audio_data.append(indata.copy())
@@ -148,19 +156,14 @@ class AudioRecorder:
                 else:
                     self._peak_level *= 0.95  # Decay rate
 
-                # Set current level
+                # Set current level (no disk I/O here - realtime thread)
                 self._current_level = self._smoothed_level
-                # Debug log when audio is above threshold
-                if self._smoothed_level > 0.2:
-                    try:
-                        with open("debug.log", "a") as f:
-                            f.write(f"[AUDIO] level={self._smoothed_level:.2f}, peak={self._peak_level:.2f}\n")
-                    except:
-                        pass
             except Exception as e:
-                with open("debug.log", "a") as f:
-                    f.write(f"Audio level error: {e}\n")
                 self._current_level = 0.0
+
+    def get_callback_status(self) -> str:
+        """Return the last audio callback status (e.g. input overflow), if any."""
+        return getattr(self, "_last_callback_status", "")
 
     def stop_recording(self) -> np.ndarray:
         """Stop recording and return the recorded audio.
@@ -201,7 +204,10 @@ class AudioRecorder:
             samplerate=self.sample_rate,
             channels=1,
             callback=self._audio_callback,
-            dtype=np.float32
+            dtype=np.float32,
+            # Larger buffer = fewer overflows on Windows (64ms at 16kHz).
+            # Latency is irrelevant for a held-hotkey recorder.
+            blocksize=1024
         )
 
     def record_blocking(self, duration: float) -> np.ndarray:
