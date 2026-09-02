@@ -454,28 +454,22 @@ class VoiceToTextASCIIApp:
             self.needs_render = True
 
     def _handle_hotkey_capture_key(self, key):
-        """Handle keypress during hotkey capture (in settings mode)."""
+        """Handle keypress during hotkey capture (in settings mode).
+
+        Only commits when a NON-modifier key is pressed (with at least one
+        modifier held). Pure modifier presses (Ctrl then Alt) are waiting
+        states - they must never commit a modifier-chord like "ctrl+alt",
+        which isn't a valid hotkey and would reset on next launch.
+        """
         if key == 'esc':  # Cancel
             self.in_hotkey_capture = False
             self.settings_message = "Hotkey change canceled"
             self.needs_render = True
             return
 
-        # Determine if this key is a modifier and get its normalized name
-        is_modifier = False
-        normalized_key = key
-        if key in ('ctrl', 'control'):
-            is_modifier = True
-            normalized_key = 'ctrl'
-        elif key in ('alt', 'altgr'):
-            is_modifier = True
-            normalized_key = 'alt'
-        elif key == 'shift':
-            is_modifier = True
-            normalized_key = 'shift'
-        elif key in ('win', 'windows', 'cmd'):
-            is_modifier = True
-            normalized_key = 'win'
+        # Is this key a pure modifier? If so, keep waiting for a real key.
+        if key in ('ctrl', 'control', 'alt', 'altgr', 'shift', 'win', 'windows', 'cmd'):
+            return
 
         # Build set of all currently pressed modifiers (normalized)
         pressed_mods = []
@@ -488,22 +482,24 @@ class VoiceToTextASCIIApp:
         if keyboard.is_pressed('win') or keyboard.is_pressed('windows') or keyboard.is_pressed('cmd'):
             pressed_mods.append('win')
 
-        # If the key itself is a modifier and is in the pressed list, exclude it from the modifiers list
-        if is_modifier and normalized_key in pressed_mods:
-            pressed_mods.remove(normalized_key)
-
-        # Require at least one other modifier in the combination
+        # A real key without any modifier held isn't a hotkey - prompt
         if not pressed_mods:
+            self.settings_message = "Hold a modifier (e.g. Ctrl+Alt) while pressing a key"
+            self.needs_render = True
             return
 
         # Construct hotkey string: sort modifiers alphabetically for consistency
         modifiers_sorted = sorted(pressed_mods)
-        new_hotkey = '+'.join(modifiers_sorted + [normalized_key])
+        new_hotkey = '+'.join(modifiers_sorted + [key])
 
         # Reconfigure hotkey
         self.controller.reconfigure_hotkey(new_hotkey)
         self.in_hotkey_capture = False
-        self.settings_message = f"Hotkey set to {new_hotkey}"
+        save_err = getattr(self.controller, "_last_save_error", None)
+        if save_err:
+            self.settings_message = f"Hotkey set (not saved: {save_err})"
+        else:
+            self.settings_message = f"Hotkey set to {new_hotkey}"
         self.needs_render = True
 
     def _cleanup_terminal(self):
