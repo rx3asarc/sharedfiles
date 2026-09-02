@@ -1,0 +1,100 @@
+{
+  "ui_component": {
+    "name": "Audio Level Meter",
+    "type": "Dynamic Progress Bar",
+    "location": "Metrics Row (appears during recording)",
+    "current_behavior": {
+      "description": "Visual indicator of microphone input volume during recording",
+      "visual_representation": "Level: ██████░░░░ 50%",
+      "components": {
+        "filled_blocks": "█ (represents active/filled portion)",
+        "empty_blocks": "░ (represents inactive/empty portion)",
+        "total_blocks": 10,
+        "percentage_display": "Shows 0-100%"
+      }
+    },
+    "current_implementation": {
+      "status": "PLACEHOLDER - Not reading real microphone levels",
+      "file": "voice_tui/main.py",
+      "line": 231,
+      "code": "audio_level = min(0.5, duration / 10.0)",
+      "limitation": "Caps at 50% (0.5) based on recording duration, not actual audio input",
+      "reason": "The AudioRecorder class doesn't implement get_current_level() method"
+    },
+    "visual_states": {
+      "0_percent": "Level: ░░░░░░░░░░ 0%",
+      "25_percent": "Level: ██░░░░░░░░ 25%",
+      "50_percent": "Level: █████░░░░░ 50%",
+      "75_percent": "Level: ███████░░░ 75%",
+      "100_percent": "Level: ██████████ 100%"
+    },
+    "display_location": {
+      "container": "#metrics-row",
+      "visibility": "Hidden by default, shown only during recording",
+      "css_class": ".visible",
+      "layout": "Horizontal, right side of duration counter"
+    },
+    "update_frequency": {
+      "interval": "100ms (0.1 seconds)",
+      "thread": "Duration timer thread",
+      "method": "_update_duration()"
+    },
+    "intended_purpose": {
+      "user_feedback": "Shows user that microphone is picking up audio",
+      "helps_with": [
+        "Confirming microphone is working",
+        "Adjusting speaking volume",
+        "Detecting if audio input is too quiet/loud",
+        "Visual confirmation during recording"
+      ]
+    },
+    "how_to_fix": {
+      "description": "To show real microphone levels instead of placeholder",
+      "required_changes": [
+        {
+          "file": "voice_tui/recorder.py",
+          "action": "Add get_current_level() method to AudioRecorder class",
+          "implementation": "Calculate RMS or peak level from audio buffer"
+        },
+        {
+          "file": "voice_tui/main.py",
+          "line": 227,
+          "action": "Remove placeholder fallback",
+          "note": "Once recorder.get_current_level() exists, it will use real values"
+        }
+      ]
+    },
+    "reusability": {
+      "export_format": "Text-based progress bar with blocks",
+      "code_pattern": {
+        "language": "Python",
+        "formula": "filled = int(level * total_blocks)\nbar = '█' * filled + '░' * (total_blocks - filled)",
+        "percentage": "level_pct = int(level * 100)",
+        "display": "f'Level: {bar} {level_pct}%'"
+      },
+      "customization": {
+        "total_blocks": "Change for different bar length (default: 10)",
+        "filled_char": "Use different character for filled (e.g., '▓', '●', '|')",
+        "empty_char": "Use different character for empty (e.g., '▒', '○', '-')",
+        "color_coding": "Can add color based on level (green/yellow/red)"
+      }
+    },
+    "example_implementations": {
+      "basic": {
+        "python": "filled = int(audio_level * 10)\nbar = '█' * filled + '░' * (10 - filled)\nprint(f'Level: {bar} {int(audio_level * 100)}%')"
+      },
+      "with_colors": {
+        "description": "Color based on level",
+        "green": "0-60% (good)",
+        "yellow": "60-85% (caution)",
+        "red": "85-100% (too loud)"
+      },
+      "alternative_styles": {
+        "dots": "●●●●●○○○○○",
+        "squares": "▓▓▓▓▓░░░░░",
+        "pipes": "||||||||__",
+        "ascii": "=====-----"
+      }
+    }
+  }
+}

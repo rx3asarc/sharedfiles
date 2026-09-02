@@ -1,0 +1,42 @@
+# Voice-to-Text TUI Configuration Example
+# Copy this file to config.yaml and customize as needed
+
+# Whisper model size
+# Options: tiny, base, small, medium, large-v2, large-v3
+# Recommendation: base (good balance of speed and accuracy)
+model_name: base
+
+# Language code for transcription
+# Options: en, es, fr, de, it, pt, nl, pl, ru, ja, zh, etc.
+# See: https://github.com/openai/whisper#available-models-and-languages
+language: en
+
+# Hotkey combination for recording (push-to-talk)
+# Format: modifier+key (e.g., ctrl+shift+z, ctrl+alt, ctrl+win)
+# Note: May require special permissions on macOS/Linux
+hotkey: ctrl+shift+z
+
+# Audio sample rate in Hz
+# Whisper expects 16000 Hz - don't change unless you know what you're doing
+sample_rate: 16000
+
+# Minimum recording duration in seconds
+# Recordings shorter than this will be rejected
+min_recording_duration: 0.5
+
+# Device type for inference
+# Options: auto, cpu, cuda
+# auto = automatically detect CUDA if available
+device_type: auto
+
+# Compute type for model
+# Options: auto, int8, float16, float32
+# auto = int8 for CPU, float16 for CUDA
+# int8 = faster but slightly less accurate
+# float16 = requires CUDA, best balance
+# float32 = most accurate but slowest
+compute_type: auto
+
+# Automatically paste transcribed text at cursor after copying to clipboard
+# If true, sends Ctrl+V (or Cmd+V on macOS) after transcription
+auto_paste: true
