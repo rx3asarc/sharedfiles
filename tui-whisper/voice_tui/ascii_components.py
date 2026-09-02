@@ -167,16 +167,18 @@ class ASCIIWaveformVisualizer:
     feels alive - even during silences.
     """
 
-    def __init__(self, width: int = 80, smoothing: float = 0.35, field_height: int = 5):
+    def __init__(self, width: int = 80, attack: float = 0.5, release: float = 0.07, field_height: int = 5):
         """Initialize waveform visualizer.
 
         Args:
             width: Width of waveform in characters
-            smoothing: EMA factor (0.0 = instant, 1.0 = fully static)
+            attack: How fast the hump grows with voice (0..1 per frame)
+            release: How slowly it settles when you stop (0..1 per frame)
             field_height: Total interior rows (symmetric around center)
         """
         self.width = max(width, 8)
-        self.smoothing = smoothing
+        self.attack = max(0.02, min(1.0, attack))
+        self.release = max(0.005, min(1.0, release))
         self.field_height = max(3, field_height)
         self.center = (self.field_height - 1) // 2  # symmetric axis row
         self.smoothed_level = 0.0
@@ -190,10 +192,18 @@ class ASCIIWaveformVisualizer:
         self.phase = 0.0
 
     def update(self, level: float):
-        """Feed a new audio level (0.0 to 1.0)."""
+        """Feed a new audio level (0.0 to 1.0) with attack/release smoothing.
+
+        Direction A: the hump rises fast with your voice (attack) but settles
+        slowly when you stop/pause (release), so it never snaps shut.
+        """
         level = max(0.0, min(1.0, level))
-        # EMA smoothing (snappy but stable)
-        self.smoothed_level = self.smoothing * self.smoothed_level + (1.0 - self.smoothing) * level
+        if level > self.smoothed_level:
+            # Attack: move most of the way to the new level quickly
+            self.smoothed_level += self.attack * (level - self.smoothed_level)
+        else:
+            # Release: creep gently down (a few % per frame)
+            self.smoothed_level += self.release * (level - self.smoothed_level)
         # Slow phase drift keeps the shape gently moving during silence
         self.phase = (self.phase + self.phase_step) % (2 * math.pi)
 
