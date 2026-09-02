@@ -145,7 +145,7 @@ class VoiceToTextASCIIApp:
                 self._process_update_queue()
 
                 # More frames per second while recording -> smoother waveform
-                target_fps = 24 if self.current_status == "recording" else 10
+                target_fps = 30 if self.current_status == "recording" else 10
                 frame_time = 1.0 / target_fps
 
                 # Render frame if needed and enough time has passed
@@ -154,8 +154,9 @@ class VoiceToTextASCIIApp:
                     self.needs_render = False
                     last_frame_time = current_time
                 else:
-                    # Sleep for remaining frame time
-                    sleep_time = self.frame_time - elapsed if elapsed < self.frame_time else 0.01
+                    # Sleep for remaining frame time (must use dynamic frame_time,
+                    # not self.frame_time, or the loop is capped at 10 FPS always)
+                    sleep_time = frame_time - elapsed if elapsed < frame_time else 0.005
                     time.sleep(sleep_time)
 
         finally:

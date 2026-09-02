@@ -101,22 +101,34 @@ class ASCIIScreenBuffer:
     def render_to_terminal(self):
         """Output buffer to terminal using ANSI escape codes.
 
-        Uses absolute cursor positioning for each line to prevent scrolling and flicker.
+        Uses absolute cursor positioning for each line to prevent scrolling and
+        flicker. Only rows that actually changed since the previous frame are
+        rewritten (row-diff), which cuts terminal output dramatically while the
+        waveform animates and keeps even high FPS cheap.
         """
         if not self.dirty:
             return
 
-        # Build output: for each line, position cursor and write line (no newlines)
         output_parts = []
         for row_idx in range(self.height):
-            # Position cursor at (row+1, 1) - ANSI rows are 1-based, columns 1-based
-            output_parts.append(f'\033[{row_idx + 1};1H')
             line = ''.join(self.buffer[row_idx])
             # Pad to full width to overwrite any leftover characters
             if len(line) < self.width:
                 line = line.ljust(self.width)
+
+            prev_line = ''.join(self.previous_buffer[row_idx])
+            if line == prev_line:
+                continue  # row unchanged - skip it
+
+            # Position cursor at (row+1, 1) - ANSI rows are 1-based, columns 1-based
+            output_parts.append(f'\033[{row_idx + 1};1H')
             output_parts.append(line)
             # Note: no newline appended - prevents scrolling
+
+        if not output_parts:
+            # Nothing changed; keep dirty=False so next identical frame is a no-op
+            self.dirty = False
+            return
 
         sys.stdout.write(''.join(output_parts))
         sys.stdout.flush()
