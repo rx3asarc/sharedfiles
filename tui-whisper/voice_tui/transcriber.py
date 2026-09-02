@@ -191,6 +191,7 @@ class WhisperTranscriber:
                 best_of=1,
                 beam_size=1,  # Optimal: speed + accuracy (beam=1 sufficient for base.en)
                 temperature=0.0,
+                condition_on_previous_text=False,  # skip 2nd conditioning pass - big latency + repetition win
                 # initial_prompt removed to reduce overhead; rely on local formatter for structure
             )
 

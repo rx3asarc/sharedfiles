@@ -349,6 +349,8 @@ class VoiceToTextController:
         Args:
             audio_data: Numpy array of audio data.
         """
+        import time as _t
+        _t0 = _t.monotonic()
         try:
             with open("debug.log", "a") as f:
                 _dbg("_transcribe_audio: starting transcription")
@@ -361,6 +363,8 @@ class VoiceToTextController:
             # Transcribe with local formatting (sub-millisecond, no LLM)
             # skip_formatting=False applies local formatter; LLM formatter disabled in config
             text = self.transcriber.transcribe(audio_data, self.config.sample_rate, skip_formatting=False)
+            _t1 = _t.monotonic()
+            _dbg(f"_transcribe_audio: TRANSCRIBE took {(_t1-_t0)*1000:.0f}ms, text len={len(text) if text else 0}")
             with open("debug.log", "a") as f:
                 _dbg(f"_transcribe_audio: got text (len={len(text) if text else 0})")
 
@@ -378,6 +382,8 @@ class VoiceToTextController:
                 with open("debug.log", "a") as f:
                     f.write("_transcribe_audio: copying to clipboard\n")
                 copied = copy_to_clipboard(text)
+                _t2 = _t.monotonic()
+                _dbg(f"_transcribe_audio: COPY took {(_t2-_t1)*1000:.0f}ms, ok={copied}")
                 with open("debug.log", "a") as f:
                     f.write(f"_transcribe_audio: clipboard copy {'succeeded' if copied else 'failed'}\n")
             except Exception as e:
@@ -391,6 +397,8 @@ class VoiceToTextController:
                         keyboard.send('command+v')
                     else:
                         keyboard.send('ctrl+v')
+                    _t3 = _t.monotonic()
+                    _dbg(f"_transcribe_audio: PASTE took {(_t3-_t2)*1000:.0f}ms")
                     with open("debug.log", "a") as f:
                         f.write("_transcribe_audio: sent paste keystroke\n")
                 except Exception as e:
