@@ -5,11 +5,13 @@ key-repeat or modifier flicker while the user is STILL holding the combo.
 Previously _on_hotkey_release() stopped the recording on ANY up event ->
 recordings cancelled mid-hold (exactly what the user saw).
 
-Fix: only a CONFIRMED release (hotkey key AND all modifiers actually up)
-stops the recording. Spurious ups while held are ignored.
+Fix: only a CONFIRMED release (N consecutive ups with hotkey key AND all
+modifiers verifiably up) stops the recording; spurious ups while held reset
+the streak. A hard max-recording-duration safety net catches missed releases.
 """
 import io
 import sys
+import time
 import types
 
 
@@ -44,8 +46,7 @@ sys.modules["keyboard"] = fk
 # --- Hermetic stubs so main imports cleanly ---
 import voice_tui.main as m
 
-# Stub out the heavy modules before main is imported? main now lazy-imports them,
-# so importing main itself is light. Good.
+m.keyboard = fk  # ensure the controller sees the fake (module global)
 
 from voice_tui.main import VoiceToTextController
 
@@ -88,6 +89,7 @@ ctrl = VoiceToTextController(FakeConfig())
 ctrl.recorder = FakeRecorder()
 ctrl._hotkey_key = "z"
 ctrl._hotkey_modifiers = {"ctrl", "shift"}
+ctrl.recording_start_time = time.time()  # so max-duration guard won't misfire
 
 # --- Scenario: user holds ctrl+shift+z ---
 fk._state = {"ctrl": True, "shift": True, "z": True}
@@ -99,7 +101,7 @@ assert ctrl._hotkey_active
 
 # Spurious ups WHILE held (what Windows does on repeat / modifier flicker)
 for _ in range(5):
-    ctrl._on_hotkey_release()
+    ctrl._on_hotkey_release(key_name="z")  # is_pressed still True -> spurious
 # Key repeat can also fire 'down' again - that's fine (guard handles it)
 for _ in range(5):
     ctrl._on_hotkey_press()
@@ -110,12 +112,36 @@ assert ctrl.recorder.stops == 0, "recording must not stop while combo held"
 assert ctrl._hotkey_active, "must stay active while held"
 print("OK  spurious ups while held do NOT cancel recording")
 
-# --- Real release: user lets go ---
+# --- Real release: user lets go. Keys now verifiably up -> immediate stop ---
 fk._state = {"ctrl": False, "shift": False, "z": False}
-ctrl._on_hotkey_release()
+ctrl._on_hotkey_release(key_name="z")
 assert not ctrl.recorder.is_recording, "real release SHOULD stop recording"
 assert ctrl.recorder.stops == 1, "exactly one stop on real release"
 assert not ctrl._hotkey_active
 print("OK  real release stops recording exactly once")
 
-print("\nPASS: recordings no longer cancelled by spurious key-up events")
+# --- Sticky is_pressed fallback: is_pressed stays True but real up keeps
+# firing -> after the 0.6s tolerance window, trust the events and stop ---
+class StickyRecorder:
+    is_recording = True
+    stops = 0
+    def start_recording(self): pass
+    def stop_recording(self): self.stops += 1
+
+ctrl2 = VoiceToTextController(FakeConfig())
+ctrl2.recorder = StickyRecorder()
+ctrl2._hotkey_key = "z"
+ctrl2._hotkey_modifiers = {"ctrl", "shift"}
+ctrl2.recording_start_time = time.time()
+ctrl2._hotkey_active = True  # as if recording
+fk._state = {"ctrl": True, "shift": True, "z": True}  # STICKY - z frozen down
+for _ in range(5):
+    ctrl2._on_hotkey_release(key_name="z")  # within 0.6s window -> debounced
+assert ctrl2.recorder.stops == 0, "brief stickiness should debounce"
+import time as _t
+_t.sleep(0.7)  # past the tolerance window
+ctrl2._on_hotkey_release(key_name="z")  # sticky too long -> trust events
+assert ctrl2.recorder.stops == 1, "sticky is_pressed must not block release forever"
+print("OK  sticky is_pressed: after tolerance window, event wins (no run-away)")
+
+print("\nPASS: spurious ups ignored; real release immediate; sticky fallback works")
