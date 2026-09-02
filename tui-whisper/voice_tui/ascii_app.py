@@ -50,8 +50,8 @@ class VoiceToTextASCIIApp:
 
         # Components
         self.status_panel = ASCIIStatusPanel(hotkey=self.config.hotkey)
-        # Waveform with smoothing (0.7 gives a nice steady visual)
-        self.waveform = ASCIIWaveformVisualizer(width=self.layout.PANEL_WIDTH - 4, smoothing=0.7)
+        # Waveform with lighter smoothing (0.35 = responsive; was 0.7 = sluggish)
+        self.waveform = ASCIIWaveformVisualizer(width=self.layout.PANEL_WIDTH - 4, smoothing=0.35)
         self.metrics = ASCIIMetricsRow()
         self.history = ASCIIHistoryLog(
             max_visible=self.layout.HISTORY_HEIGHT - 2,
@@ -144,8 +144,12 @@ class VoiceToTextASCIIApp:
                 # Process updates from background threads
                 self._process_update_queue()
 
+                # More frames per second while recording -> smoother waveform
+                target_fps = 24 if self.current_status == "recording" else 10
+                frame_time = 1.0 / target_fps
+
                 # Render frame if needed and enough time has passed
-                if self.needs_render and elapsed >= self.frame_time:
+                if self.needs_render and elapsed >= frame_time:
                     self._render_frame()
                     self.needs_render = False
                     last_frame_time = current_time
@@ -544,27 +548,19 @@ class VoiceToTextASCIIApp:
         elif cmd == 'update_metrics':
             _, duration, level, peak = msg
 
-            # Only update if values changed significantly (reduces flickering)
-            duration_changed = abs(duration - self.prev_duration) >= 0.1
-            level_changed = abs(level - self.prev_level) >= 0.02  # 2% threshold
-            peak_changed = abs(peak - self.prev_peak) >= 0.02
+            # Always advance the waveform buffer on every metrics message so the
+            # wave keeps scrolling (even during silence/breaks in speech, level
+            # naturally falls to 0 and the flat line continues moving).
+            self.recording_duration = duration
+            self.audio_level = level
+            self.peak_level = peak
+            self.prev_duration = duration
+            self.prev_level = level
+            self.prev_peak = peak
+            self.waveform.update(level)
 
-            if duration_changed or level_changed or peak_changed:
-                self.recording_duration = duration
-                self.audio_level = level
-                self.peak_level = peak
-
-                # Only update waveform if level changed
-                if level_changed:
-                    self.waveform.update(level)
-
-                # Store previous values
-                self.prev_duration = duration
-                self.prev_level = level
-                self.prev_peak = peak
-
-                # Mark for render
-                self.needs_render = True
+            # Mark for render
+            self.needs_render = True
 
         elif cmd == 'set_transcription':
             _, text, copied, auto_typed = msg
