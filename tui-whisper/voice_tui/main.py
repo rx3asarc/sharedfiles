@@ -1,6 +1,7 @@
 """Main application entry point and orchestration."""
 
 import argparse
+import os
 import sys
 import time
 import threading
@@ -64,6 +65,27 @@ def _flush_debug():
     _DEBUG_BUFFER.clear()
 
 atexit.register(_flush_debug)
+
+def _run_bounded(seconds: float, fn, *args, **kwargs) -> bool:
+    """Run fn in a daemon thread; wait up to `seconds` for it.
+
+    Used for shutdown steps that can block on Windows (keyboard unhook,
+    sounddevice stream close) so quitting is never stuck behind them.
+
+    Returns:
+        True if fn completed within the time limit.
+    """
+    done = threading.Event()
+    def runner():
+        try:
+            fn(*args, **kwargs)
+        except Exception:
+            pass
+        finally:
+            done.set()
+    t = threading.Thread(target=runner, daemon=True)
+    t.start()
+    return done.wait(seconds)
 
 
 class VoiceToTextController:
@@ -703,25 +725,23 @@ class VoiceToTextController:
             pass
 
     def shutdown(self):
-        """Clean up resources."""
+        """Stop background work and flush logs - minimal and instant.
+
+        The process exits via os._exit() immediately after this, so the OS
+        reclaims audio streams, keyboard hooks, and device handles. There is
+        NO need to gracefully close them here (on Windows that's exactly what
+        caused multi-second quit stalls). We only:
+          1. flip the shutting-down flag (background loops exit),
+          2. flush the debug log buffer.
+        """
         self.is_shutting_down = True
-        _flush_debug()  # persist batched debug logs on quit
+        _flush_debug()
 
-        # Stop recording if active
-        if self.recorder and self.recorder.is_recording:
-            try:
-                if self.recording_stream:
-                    self.recording_stream.stop()
-                    self.recording_stream.close()
-                self.recorder.stop_recording()
-            except:
-                pass
-
-        # Unhook keyboard
+        # Best-effort, sub-second unhook (the OS cleans up fully on exit anyway)
         if keyboard:
             try:
-                keyboard.unhook_all()
-            except:
+                _run_bounded(0.3, keyboard.unhook_all)
+            except Exception:
                 pass
 
     def reconfigure_hotkey(self, new_hotkey: str):
@@ -841,15 +861,28 @@ def main():
     print()
 
     # Run the application
+    interrupted = False
     try:
         controller.run()
     except KeyboardInterrupt:
+        interrupted = True
         print("\nShutting down...")
     except Exception as e:
         print(f"\nFatal error: {e}")
-        sys.exit(1)
+        _flush_debug()
+        sys.stdout.flush()
+        # Skip interpreter shutdown (can hang on Windows behind library teardown)
+        os._exit(1)
 
     print("Goodbye!")
+    sys.stdout.flush()
+    _flush_debug()
+
+    # Hard exit: skip interpreter shutdown entirely. Python's finalization can
+    # block for many seconds on Windows (sounddevice/PortAudio teardown,
+    # keyboard hook threads, library atexit). Cleanup already happened in
+    # controller.shutdown(), so this is safe and makes quit instant.
+    os._exit(0)
 
 
 if __name__ == "__main__":
