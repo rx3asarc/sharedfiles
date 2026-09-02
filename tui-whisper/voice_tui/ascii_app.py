@@ -167,6 +167,9 @@ class VoiceToTextASCIIApp:
                     if sleep_time > 0:
                         time.sleep(sleep_time)
 
+        except KeyboardInterrupt:
+            # Ctrl+C: exit the loop immediately; cleanup runs in finally.
+            self.running = False
         finally:
             self._cleanup_terminal()
 
