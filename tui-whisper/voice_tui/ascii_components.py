@@ -181,8 +181,7 @@ class ASCIIWaveformVisualizer:
         self.center = (self.field_height - 1) // 2  # symmetric axis row
         self.smoothed_level = 0.0
         self.phase = 0.0
-        # 2.5 humps across the width, drifting slowly (one cycle ~4s at 30fps)
-        self.hump_count = 2.5
+        # Single central hump; phase drift keeps it gently alive in silence
         self.phase_step = (2 * math.pi) / 120.0
 
     def clear(self):
@@ -199,14 +198,25 @@ class ASCIIWaveformVisualizer:
         self.phase = (self.phase + self.phase_step) % (2 * math.pi)
 
     def _height_at(self, x: int) -> float:
-        """Normalized height for one column (0.0 to 1.0)."""
-        # Perceptual response: root-compress so quiet speech still shows
-        env = self.smoothed_level ** 0.6
-        # Carrier humps + gentle second-harmonic shimmer for organic texture
-        carrier = 0.5 + 0.5 * math.sin(2 * math.pi * self.hump_count * x / self.width + self.phase)
-        shimmer = 1.0 + 0.08 * math.sin(4 * math.pi * self.hump_count * x / self.width - self.phase)
-        # Baseline keeps a soft breathing line even in complete silence
-        h = (0.25 + 0.75 * env) * carrier * shimmer
+        """Normalized height for one column (0.0 to 1.0).
+
+        ONE centered hump (gaussian) that grows outward from the middle as
+        the voice envelope rises - wider AND taller - but keeps visible
+        edges (never fills the whole box). A faint ripple keeps it organic.
+        """
+        env = self.smoothed_level ** 0.6  # root-compress: quiet speech still shows
+        cx = (self.width - 1) / 2.0
+        # Sigma grows with voice: ~12% of width at silence -> ~25% at loud,
+        # so the hump surges outward from center but edges stay visible.
+        sigma = self.width * (0.12 + 0.13 * env)
+        if sigma < 2.0:
+            sigma = 2.0
+        d = (x - cx) / sigma
+        gauss = math.exp(-0.5 * d * d)
+        # Faint travelling ripple - a hint of life, not separate humps
+        ripple = 1.0 + 0.05 * math.sin(2 * math.pi * d * 2.0 + self.phase)
+        # Baseline 0.26 keeps a small breathing bump visible in silence
+        h = (0.26 + 0.74 * env) * gauss * ripple
         return min(1.0, max(0.0, h))
 
     def render(self) -> List[str]:
