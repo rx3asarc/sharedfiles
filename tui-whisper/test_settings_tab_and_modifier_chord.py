@@ -139,4 +139,34 @@ app5._handle_settings_edit_key("enter")
 assert app5.controller.config.model_name == "small", "enter should save cycled choice"
 print("OK  5. Tab cycles choice setting (base->small, enter saves)")
 
+# ===== 4. Typing is blocked for bool/choice (no Truee) =====
+app6 = VoiceToTextASCIIApp(FakeConfig(), FakeController())
+app6.settings_mode = True
+app6.settings_cursor = 7  # Auto Type (bool)
+app6._handle_settings_navigation_key("e")
+assert app6.settings_edit_buffer == "False"
+app6._handle_settings_edit_key("e")  # try typing - should be BLOCKED
+assert app6.settings_edit_buffer == "False", "typing must not append for bool, got %r" % app6.settings_edit_buffer
+assert "Tab" in app6.settings_message, "should hint to use Tab"
+app6._handle_settings_edit_key("tab")  # Tab still works
+app6._handle_settings_edit_key("e")  # typing still blocked after Tab
+assert app6.settings_edit_buffer == "True", "buffer should stay exactly 'True' (no Truee), got %r" % app6.settings_edit_buffer
+
+# Choice also blocks typing
+app7 = VoiceToTextASCIIApp(FakeConfig(), FakeController())
+app7.settings_mode = True
+app7.settings_cursor = 0  # Model (choice)
+app7._handle_settings_navigation_key("e")
+app7._handle_settings_edit_key("x")
+assert app7.settings_edit_buffer == "base", "typing must not corrupt choice, got %r" % app7.settings_edit_buffer
+
+# Text fields still allow typing
+app8 = VoiceToTextASCIIApp(FakeConfig(), FakeController())
+app8.settings_mode = True
+app8.settings_cursor = 1  # Language (string)
+app8._handle_settings_navigation_key("e")
+app8._handle_settings_edit_key("e")
+assert app8.settings_edit_buffer == "ene", "text fields still allow typing, got %r" % app8.settings_edit_buffer
+print("OK  4. typing blocked for bool/choice; text fields still allow typing")
+
 print("\nPASS: modifier-chord hotkey + Tab-cycling for bool/choice")
