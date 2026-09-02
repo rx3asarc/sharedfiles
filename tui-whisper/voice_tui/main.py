@@ -428,6 +428,21 @@ class VoiceToTextController:
                 if not hasattr(self, "_last_dur_log") or abs(duration - self._last_dur_log) >= 1.0:
                     _dbg(f"_update_duration: dur={duration:.2f}, level={audio_level:.2f}, peak={peak_level:.2f}")
                     self._last_dur_log = duration
+
+                # Surface audio callback issues (e.g. input overflow) in the UI
+                try:
+                    oc = getattr(self.recorder, "_overflow_count", 0)
+                except Exception:
+                    oc = 0
+                if oc and oc != getattr(self, "_last_overflow_count", 0):
+                    self._last_overflow_count = oc
+                    _dbg(f"audio callback overflow count: {oc}")
+                    if self.app:
+                        self.app.call_from_thread(
+                            self.app.set_status, "recording",
+                            f"Audio overflow - frames dropped ({oc})"
+                        )
+
                 self.app.call_from_thread(self.app.update_recording_metrics, duration, audio_level, peak_level)
         except Exception as e:
             _dbg(f"_update_duration exception: {e}")
