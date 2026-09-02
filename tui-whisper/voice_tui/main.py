@@ -107,6 +107,11 @@ class VoiceToTextController:
         self.duration_timer = None
         self.is_shutting_down = False
         self._hotkey_active = False  # Guard against key repeat
+        # Debounce for release detection: count consecutive confirmed releases.
+        self._release_streak = 0
+        self._release_streak_limit = 2  # N up-events in a row -> real release
+        # Absolute safety: never record longer than this (seconds)
+        self._max_recording_duration = 120.0
 
     def initialize(self) -> bool:
         """Initialize all components (runs in background thread).
@@ -482,6 +487,15 @@ class VoiceToTextController:
         def timer_loop():
             while self.recorder and self.recorder.is_recording and not self.is_shutting_down:
                 self._update_duration()
+                # Absolute safety: force-stop if recording exceeds the max duration
+                try:
+                    if (time.time() - self.recording_start_time > self._max_recording_duration and
+                            self.recorder.is_recording):
+                        _dbg("max recording duration exceeded - force stopping")
+                        self._stop_after_release()
+                        break
+                except Exception:
+                    pass
                 time.sleep(0.033)  # ~30 Hz -> more frames per second for the waveform
 
         self.duration_timer = threading.Thread(target=timer_loop, daemon=True)
@@ -599,7 +613,10 @@ class VoiceToTextController:
             else:  # 'up'
                 with open("debug.log", "a") as f:
                     f.write("Hotkey up event received\n")
-                self._on_hotkey_release()
+                # A real 'up' event for the hotkey key is GROUND TRUTH that the
+                # user let go (keyboard events, not the unreliable is_pressed
+                # state which can be sticky on Windows). Pass the key name.
+                self._on_hotkey_release(key_name)
         except Exception as e:
             with open("debug.log", "a") as f:
                 f.write(f"Hotkey handler error: {e}\n")
@@ -623,44 +640,69 @@ class VoiceToTextController:
             self._hotkey_active = False  # reset on error
 
     def _confirm_hotkey_released(self) -> bool:
-        """Check if the hotkey's key and modifiers are ALL actually released.
+        """Event-driven release detection with a sticky-is_pressed timeout.
 
-        Windows 'keyboard' can emit a spurious 'up' for the hotkey character
-        during key-repeat or a modifier flicker even while the user is still
-        holding the whole combo. Only a real release (key up AND no modifiers
-        pressed for a beat) should end the recording.
+        Windows can (a) emit spurious 'up' events while the combo is still
+        held, and (b) report is_pressed sticky-True after a real release.
+        Strategy:
+          - An 'up' while is_pressed still reports held: likely spurious,
+            but only tolerate it up to a short window (fallback).
+          - Once we've seen continuous 'up' events past the fallback window,
+            trust the events and release (sticky-proof).
         """
+        now = time.time()
         if keyboard is None:
-            return False
+            return True
         try:
-            key = self._hotkey_key
-            if not key:
+            still_held = False
+            try:
+                if keyboard.is_pressed(self._hotkey_key):
+                    still_held = True
+            except Exception:
+                pass
+            if not still_held:
+                for mod in self._hotkey_modifiers or set():
+                    try:
+                        if keyboard.is_pressed(mod):
+                            still_held = True
+                            break
+                    except Exception:
+                        pass
+            if still_held:
+                self._release_since = getattr(self, "_release_since", now)
+                # Tolerance window: allow brief is_pressed stickiness (spurious)
+                if now - self._release_since > 0.6:
+                    # is_pressed is stuck - trust the real 'up' events
+                    _dbg("  is_pressed sticky >0.6s - trusting up events")
+                    return True
                 return False
-            # The key itself must not be pressed
-            if keyboard.is_pressed(key):
-                return False
-            # And none of the required modifiers may still be pressed
-            for mod in self._hotkey_modifiers or set():
-                if keyboard.is_pressed(mod):
-                    return False
             return True
         except Exception:
-            # If the check fails, fall back to treating it as a release
+            # If the check fails, trust the events
             return True
 
-    def _on_hotkey_release(self):
+    def _on_hotkey_release(self, key_name=None):
         """Handle hotkey release event (triggered by add_hotkey or hook).
 
-        Only a CONFIRMED release (key + modifiers all actually up) stops the
-        recording; spurious 'up' events during a held key are debounced.
+        Release stops the recording when we get a real 'up' event (or the
+        is_pressed state clears). A brief spurious 'up' while still held is
+        ignored (debounce). A hard max-recording-duration is the backstop for
+        any missed release.
         """
         _dbg("Hotkey release event (handler entry)")
 
-        # If the combo is still physically held, this is a repeat/artifact - ignore
-        if not self._confirm_hotkey_released():
-            _dbg("  release ignored: combo still held (spurious up)")
+        # If this isn't our key (e.g. modifier-only up), ignore
+        if key_name and key_name != self._hotkey_key:
             return
 
+        if not self._confirm_hotkey_released():
+            _dbg("  release ignored: spurious up (still held or brief flicker)")
+            return
+
+        self._stop_after_release()
+
+    def _stop_after_release(self):
+        """Stop recording after a confirmed release (shared by debounce paths)."""
         was_active = self._hotkey_active
         self._hotkey_active = False
         if was_active and self.recorder and self.recorder.is_recording:

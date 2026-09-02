@@ -11,6 +11,7 @@ This test captures sys.stderr and asserts:
 """
 import io
 import sys
+import time
 import types
 
 # --- Hermetic stubs: this box has no sounddevice/faster_whisper ---
@@ -84,6 +85,7 @@ try:
     ctrl.stop_recording = ctrl.recorder.stop_recording
     ctrl._hotkey_key = "z"
     ctrl._hotkey_modifiers = {"ctrl", "shift"}
+    ctrl.recording_start_time = time.time()  # so max-duration guard won't misfire
 
     # 1. First press (starts recording) - combo held
     fake_keyboard._state = {"ctrl": True, "shift": True, "z": True}
@@ -99,19 +101,24 @@ try:
 
     # 2b. Spurious 'up' events while STILL HELD must not cancel recording
     for _ in range(10):
-        ctrl._on_hotkey_release()  # fake state still has combo down
+        ctrl._on_hotkey_release(key_name="z")  # fake state still has combo down
     assert ctrl.recorder.stop_calls == 0, "spurious ups must not stop recording"
     assert ctrl.recorder.is_recording, "still recording after spurious ups"
 
-    # 3. Real release (keys now up)
+    # 3. Real release (keys now up) - immediate stop (event-based)
     fake_keyboard._state = {"ctrl": False, "shift": False, "z": False}
-    ctrl._on_hotkey_release()
+    ctrl._on_hotkey_release(key_name="z")
     assert ctrl.recorder.stop_calls == 1, "release should stop recording"
     assert not ctrl._hotkey_active, "controller should be inactive after release"
     assert not ctrl.recorder.is_recording, "recorder should be stopped"
 
+    # 3b. Modifier-only 'up' (not our key) must be ignored
+    before = ctrl.recorder.stop_calls
+    ctrl._on_hotkey_release(key_name="ctrl")
+    assert ctrl.recorder.stop_calls == before, "modifier-only up must be ignored"
+
     # 4. Release without prior press (spurious) must not crash or write
-    ctrl._on_hotkey_release()
+    ctrl._on_hotkey_release(key_name="z")
 
     # 5. THE assertion: nothing was ever written to the terminal
     terminal_output = ''.join(spy.writes)
