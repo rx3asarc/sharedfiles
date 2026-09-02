@@ -486,6 +486,16 @@ class VoiceToTextASCIIApp:
             else:
                 # Ignore other named keys (shift, ctrl, etc.)
                 return
+
+            # Bool/choice settings are Tab-cycled only - typed characters are
+            # NOT allowed (a stray 'e' must never turn True into 'Truee').
+            setting = self.settings_defs[self.settings_edit_index]
+            type_ = setting[2]
+            if type_ in ('bool', 'choice'):
+                self._set_settings_message(f"{setting[0]}: use Tab to cycle, Enter to save")
+                self.needs_render = True
+                return
+
             self.settings_edit_buffer += char
             self.needs_render = True
 
