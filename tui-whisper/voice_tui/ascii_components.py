@@ -180,7 +180,7 @@ class ASCIIWaveformVisualizer:
         self.attack = max(0.02, min(1.0, attack))
         self.release = max(0.005, min(1.0, release))
         self.field_height = max(3, field_height)
-        self.center = (self.field_height - 1) // 2  # symmetric axis row
+        self.center = (self.field_height * 4) // 2  # symmetric axis in sub-pixels
         self.smoothed_level = 0.0
         self.phase = 0.0
         # Single central hump; phase drift keeps it gently alive in silence
@@ -216,82 +216,76 @@ class ASCIIWaveformVisualizer:
         """
         env = self.smoothed_level ** 0.6  # root-compress: quiet speech still shows
         cx = (self.width - 1) / 2.0
-        # Sigma grows with voice: narrower at silence, wider when loud,
-        # so the hump visibly adapts to voice strength.
-        sigma = self.width * (0.10 + 0.16 * env)
-        if sigma < 2.0:
-            sigma = 2.0
+        # Moderate sigma: not too spread out, grows a bit with voice
+        sigma = self.width * (0.05 + 0.07 * env)
+        if sigma < 1.5:
+            sigma = 1.5
         d = (x - cx) / sigma
         gauss = math.exp(-0.5 * d * d)
-        # Faint travelling ripple - a hint of life, not separate humps
-        ripple = 1.0 + 0.05 * math.sin(2 * math.pi * d * 2.0 + self.phase)
-        # Baseline 0.22 keeps a small breathing bump visible in silence
-        h = (0.22 + 0.78 * env) * gauss * ripple
+        # Ripple - a travelling shimmer; strong enough to be visible even at
+        # silence so the small bump keeps breathing (must cross quantization).
+        ripple = 1.0 + 0.15 * math.sin(2 * math.pi * d * 2.0 + self.phase)
+        # Baseline 0.26 keeps a small breathing bump visible in silence
+        h = (0.26 + 0.74 * env) * gauss * ripple
         return min(1.0, max(0.0, h))
 
-    def render(self) -> List[str]:
-        """Render the waveform as a dense, symmetric hump using half-blocks.
+    @staticmethod
+    def _braille_bit(v: int, col: int) -> int:
+        """Braille dot bit for sub-row v (0-3) and sub-col col (0-1)."""
+        LEFT = (0x01, 0x02, 0x04, 0x40)   # dots 1,2,3,7
+        RIGHT = (0x08, 0x10, 0x20, 0x80)  # dots 4,5,6,8
+        return LEFT[v] if col == 0 else RIGHT[v]
 
-        Each character cell is two visual levels (top half + bottom half via
-        the Unicode half-block characters), so a 5-row wave shows ~11 levels
-        and a 7-row wave ~15 levels - far more nuance than the old 3-5 chunky
-        levels, while using the same terminal rows.
+    def render(self) -> List[str]:
+        """Render the waveform as a smooth, solid hump at braille resolution.
+
+        Uses FULL braille sub-pixels (4 levels per character row, 2 per
+        column) so a wave with F interior rows has F*4 vertical levels
+        (7 rows = 28 levels - 8-10x the original chunky blocks). The body is
+        solid (like the earlier half-block look you liked) but the contour is
+        smooth, and a single-dot thin baseline appears only near the hump.
 
         Returns:
             List of field_height strings, each width chars long.
         """
         F = self.field_height
-        c = self.center
-        half_side = F  # half-strips per side (e.g. 5 for a 5-row field)
-        # half-fill per column: top_fill[row] and bottom_fill[row] booleans
-        top = [False] * F
-        bottom = [False] * F
-        rows = [[' ' for _ in range(self.width)] for _ in range(F)]
+        V = F * 4                     # vertical sub-pixels
+        center = V // 2               # axis between sub-rows center-1/center
+        mid_sub = center - 1          # exact middle sub-row (baseline)
+        half = V // 2                 # max half-fill per side
+        W = self.width
 
-        for x in range(self.width):
-            h = self._height_at(x)
-            n = int(round(h * half_side))  # half-levels above/below midline
+        mask = [[0] * W for _ in range(F)]
+        base_lim = self.width * 0.26  # baseline only near the hump (radius)
+        cx = (W - 1) / 2.0
+
+        for xi in range(W):
+            h = self._height_at(xi)
+            # scale so the mound never saturates to a flat-topped brick
+            n = int(round(h * half * 0.78))
+            near_hump = abs(xi - cx) <= base_lim
 
             if n <= 0:
-                # soft flat baseline at the midline
-                rows[c][x] = '─'
+                if near_hump:
+                    # thin solid baseline (both cols at the exact mid sub-row)
+                    r, v = divmod(mid_sub, 4)
+                    mask[r][xi] |= self._braille_bit(v, 0) | self._braille_bit(v, 1)
                 continue
 
-            # Fill n half-strips above the midline, n below (symmetric)
-            for k in range(1, n + 1):
-                # above: k=1 -> row c top, k=2 -> row c-1 bottom, ...
-                if k % 2 == 1:
-                    r = c - (k - 1) // 2
-                    if r >= 0:
-                        top[r] = True
-                else:
-                    r = c - k // 2
-                    if r >= 0:
-                        bottom[r] = True
-                # below: k=1 -> row c bottom, k=2 -> row c+1 top, ...
-                if k % 2 == 1:
-                    r = c + (k - 1) // 2
-                    if r < F:
-                        bottom[r] = True
-                else:
-                    r = c + k // 2
-                    if r < F:
-                        top[r] = True
+            lo = max(0, center - n)
+            hi = min(V - 1, center + n - 1)
+            for gy in range(lo, hi + 1):
+                r = gy // 4
+                v = gy % 4
+                mask[r][xi] |= self._braille_bit(v, 0) | self._braille_bit(v, 1)
 
-            # Render the column from the half-fill flags
-            for r in range(F):
-                t, b = top[r], bottom[r]
-                if t and b:
-                    rows[r][x] = '█'
-                elif t:
-                    rows[r][x] = '▀'
-                elif b:
-                    rows[r][x] = '▄'
-                # reset flags for next column
-                top[r] = False
-                bottom[r] = False
-
-        return [''.join(row) for row in rows]
+        rows = []
+        for r in range(F):
+            rows.append(''.join(
+                chr(0x2800 + mask[r][xi]) if mask[r][xi] else ' '
+                for xi in range(W)
+            ))
+        return rows
 
 
 class ASCIIMetricsRow:

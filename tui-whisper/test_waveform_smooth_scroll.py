@@ -40,14 +40,18 @@ class FakeController:
     def reconfigure_hotkey(self, hk):
         pass
 
+def _is_filled(ch):
+    """True for block, half-block, or braille glyphs (any octave)."""
+    return ch in ('█', '▓', '▀', '▄') or 0x2801 <= ord(ch) <= 0x28FF
+
 # --- Direct component tests ---
 W = 60
 vis = ASCIIWaveformVisualizer(width=W, attack=0.5, release=0.07, field_height=5)
-assert vis.field_height == 5 and vis.center == 2
+assert vis.field_height == 5
 
 def count_filled(vis):
     grid = vis.render()
-    return sum(1 for row in grid for ch in row if ch in ('█', '▓', '▀', '▄'))
+    return sum(1 for row in grid for ch in row if _is_filled(ch))
 
 vis.clear()
 # Silence: soft breathing line, still renders, still animates
@@ -108,7 +112,7 @@ assert len(rows) == 5, "render should return field_height rows"
 assert all(len(r) == W for r in rows), "every row must be full width"
 # Symmetry: top/bottom halves mirror each other approximately
 assert rows[0].count(' ') == rows[4].count(' ') + 0 or True  # filled-cell symmetry is exact per column
-def filled(row): return sum(1 for ch in row if ch in ('█', '▓', '▀', '▄'))
+def filled(row): return sum(1 for ch in row if _is_filled(ch))
 assert filled(rows[0]) == filled(rows[4]), "waveform must be vertically symmetric (top/bottom mirror)"
 print("OK  render: 5 rows, full width, vertically symmetric")
 
@@ -120,13 +124,13 @@ for _ in range(12):
 heights = vis.render()
 center_x = W // 2
 # No column should be taller than the center column
-center_filled = sum(1 for row in heights if row[center_x] in ('█', '▓', '▀', '▄', '─'))
+center_filled = sum(1 for row in heights if _is_filled(row[center_x]) or row[center_x] == '─')
 for x in range(0, center_x):
-    col_filled = sum(1 for row in heights if row[x] in ('█', '▓', '▀', '▄', '─'))
+    col_filled = sum(1 for row in heights if _is_filled(row[x]) or row[x] == '─')
     assert col_filled <= center_filled, \
         "outer column %d taller than center - should be a single centered hump" % x
 # And the far edges should be visibly shorter than near-center (edges visible)
-edge_filled = sum(1 for row in heights if row[0] in ('█', '▓', '▀', '▄', '─'))
+edge_filled = sum(1 for row in heights if _is_filled(row[0]) or row[0] == '─')
 assert edge_filled < center_filled, \
     "waveform should reach out from center with visible edges"
 print("OK  single centered hump: peak at center, edges visible")
