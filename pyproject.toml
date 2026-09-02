@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voice-tui"
+version = "0.1.0"
+description = "Local voice-to-text TUI with hotkey recording"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "faster-whisper>=1.0.0",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "keyboard>=0.13.5",
+    "pyperclip>=1.8.2",
+    "textual>=0.44.0",
+    "PyYAML>=6.0",
+    "pyautogui>=0.9.54"
+]
+
+[project.scripts]
+voice-tui = "voice_tui.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["voice_tui*"]

@@ -1,0 +1,244 @@
+"""Textual TUI interface for voice-to-text application."""
+
+from enum import Enum
+from textual.app import App, ComposeResult
+from textual.containers import Container, Vertical
+from textual.widgets import Header, Footer, Static, Label
+from textual.reactive import reactive
+from rich.text import Text
+
+
+class AppState(Enum):
+    """Application states."""
+    IDLE = "idle"
+    RECORDING = "recording"
+    PROCESSING = "processing"
+    ERROR = "error"
+
+
+class VoiceToTextApp(App):
+    """Main TUI application for voice-to-text transcription."""
+
+    CSS = """
+    Screen {
+        background: $surface;
+    }
+
+    #title {
+        dock: top;
+        height: 3;
+        content-align: center middle;
+        background: $primary;
+        color: $text;
+        text-style: bold;
+    }
+
+    #status-container {
+        height: auto;
+        background: $panel;
+        padding: 1;
+        margin: 1;
+    }
+
+    .status-line {
+        height: 1;
+        margin: 0 0 1 0;
+    }
+
+    #transcription-container {
+        height: auto;
+        min-height: 8;
+        background: $panel;
+        padding: 1;
+        margin: 1;
+    }
+
+    #transcription-label {
+        color: $text;
+        height: 1;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #transcription-text {
+        color: $success;
+        height: auto;
+        min-height: 3;
+    }
+
+    #clipboard-status {
+        color: $success;
+        height: 1;
+        margin-top: 1;
+    }
+
+    #help-container {
+        dock: bottom;
+        height: 4;
+        background: $panel;
+        padding: 1;
+    }
+
+    .help-line {
+        height: 1;
+        color: $text-muted;
+    }
+
+    .state-idle {
+        color: $success;
+    }
+
+    .state-recording {
+        color: $error;
+        text-style: bold;
+    }
+
+    .state-processing {
+        color: $warning;
+    }
+
+    .state-error {
+        color: $error;
+    }
+    """
+
+    BINDINGS = [
+        ("ctrl+c", "quit", "Quit"),
+        ("q", "quit", "Quit"),
+    ]
+
+    state = reactive(AppState.IDLE)
+    status_text = reactive("Ready")
+    model_info = reactive("")
+    hotkey_info = reactive("")
+    transcription = reactive("")
+    clipboard_msg = reactive("")
+    recording_duration = reactive(0.0)
+
+    def __init__(self, model_name: str = "base", hotkey: str = "ctrl+win"):
+        """Initialize the TUI app.
+
+        Args:
+            model_name: Name of the Whisper model.
+            hotkey: Hotkey combination for recording.
+        """
+        super().__init__()
+        self.model_info = f"Model: {model_name}"
+        self.hotkey_info = f"Hotkey: {hotkey}"
+
+    def compose(self) -> ComposeResult:
+        """Compose the UI layout."""
+        yield Static("Voice-to-Text Transcription", id="title")
+
+        with Container(id="status-container"):
+            yield Label("", id="status-line", classes="status-line")
+            yield Label("", id="model-line", classes="status-line")
+            yield Label("", id="hotkey-line", classes="status-line")
+            yield Label("", id="duration-line", classes="status-line")
+
+        with Container(id="transcription-container"):
+            yield Static("Last Transcription:", id="transcription-label")
+            yield Static("", id="transcription-text")
+            yield Static("", id="clipboard-status")
+
+        with Container(id="help-container"):
+            yield Static(f"Press {self.hotkey_info.split(': ')[1]} to record", classes="help-line")
+            yield Static("Press Ctrl+C or Q to quit", classes="help-line")
+
+        yield Footer()
+
+    def on_mount(self) -> None:
+        """Called when app is mounted."""
+        self.update_status_display()
+
+    def watch_state(self, new_state: AppState) -> None:
+        """React to state changes."""
+        self.update_status_display()
+
+    def watch_status_text(self, new_text: str) -> None:
+        """React to status text changes."""
+        self.update_status_display()
+
+    def watch_transcription(self, new_text: str) -> None:
+        """React to transcription changes."""
+        transcription_widget = self.query_one("#transcription-text", Static)
+        transcription_widget.update(new_text)
+
+    def watch_clipboard_msg(self, new_msg: str) -> None:
+        """React to clipboard message changes."""
+        clipboard_widget = self.query_one("#clipboard-status", Static)
+        clipboard_widget.update(new_msg)
+
+    def watch_recording_duration(self, duration: float) -> None:
+        """React to recording duration changes."""
+        self.update_status_display()
+
+    def update_status_display(self) -> None:
+        """Update the status display based on current state."""
+        status_widget = self.query_one("#status-line", Label)
+        model_widget = self.query_one("#model-line", Label)
+        hotkey_widget = self.query_one("#hotkey-line", Label)
+        duration_widget = self.query_one("#duration-line", Label)
+
+        # Update model and hotkey (static)
+        model_widget.update(self.model_info)
+        hotkey_widget.update(self.hotkey_info)
+
+        # Update status based on state
+        if self.state == AppState.IDLE:
+            status_widget.update(Text("Status: Idle ✓", style="bold green"))
+            duration_widget.update("")
+        elif self.state == AppState.RECORDING:
+            status_widget.update(Text(f"Status: RECORDING ●", style="bold red"))
+            duration_widget.update(f"Duration: {self.recording_duration:.1f}s")
+        elif self.state == AppState.PROCESSING:
+            status_widget.update(Text("Status: Processing...", style="bold yellow"))
+            duration_widget.update("")
+        elif self.state == AppState.ERROR:
+            status_widget.update(Text(f"Status: Error - {self.status_text}", style="bold red"))
+            duration_widget.update("")
+
+    def set_state(self, state: AppState, message: str = "") -> None:
+        """Set the application state.
+
+        Args:
+            state: New state to set.
+            message: Optional status message.
+        """
+        self.state = state
+        if message:
+            self.status_text = message
+
+    def set_transcription(self, text: str, copied: bool = False) -> None:
+        """Set the transcription text.
+
+        Args:
+            text: Transcribed text to display.
+            copied: Whether the text was copied to clipboard.
+        """
+        self.transcription = text
+        if copied:
+            self.clipboard_msg = "✓ Copied to clipboard"
+        else:
+            self.clipboard_msg = ""
+
+    def set_recording_duration(self, duration: float) -> None:
+        """Set the recording duration.
+
+        Args:
+            duration: Duration in seconds.
+        """
+        self.recording_duration = duration
+
+    def show_error(self, error_message: str) -> None:
+        """Show an error message.
+
+        Args:
+            error_message: Error message to display.
+        """
+        self.set_state(AppState.ERROR, error_message)
+
+    def clear_error(self) -> None:
+        """Clear any error state."""
+        if self.state == AppState.ERROR:
+            self.set_state(AppState.IDLE)
