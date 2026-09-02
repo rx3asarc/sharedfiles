@@ -209,13 +209,18 @@ class WhisperTranscriber:
     def _format_transcription(self, text: str) -> str:
         """Apply fast, local formatting to transcription (no LLM).
 
-        Uses regex patterns to add structure:
-        - Bullet points for lists
-        - Numbered lists for sequences
-        - Proper spacing and capitalization
-        - Category headers
+        Produces natural, flowing text - NOT force-broken fragments:
+        - Sentences run together in a single paragraph (joined with spaces),
+          never pushed onto separate lines.
+        - Punctuation stays attached to its sentence (no stray "." on its own line).
+        - Clean capitalization and spacing.
 
-        Runs in <1ms locally.
+        Structure is added ONLY when it is unambiguously intentional:
+        - 2+ colon-categories with 2+ items each ("Fruits: bananas, apples.")
+          become **Category:** headers with bullets.
+        - Every sentence starting with an explicit number ("1. ... 2. ...")
+          becomes a numbered list.
+        Everything else flows as normal prose.
 
         Args:
             text: Raw transcription text
@@ -226,109 +231,68 @@ class WhisperTranscriber:
         if not text or not text.strip():
             return text
 
-        # Normalize whitespace
+        # Normalize whitespace and punctuation spacing
         text = re.sub(r'\s+', ' ', text.strip())
+        text = re.sub(r'\s+([.,!?;:])', r'\1', text)                # no space before punct
+        # space after sentence punctuation before LETTERS (keeps decimals like 3.5 intact)
+        text = re.sub(r'([.!?])([A-Za-z])', r'\1 \2', text)
+        # space after comma/semicolon/colon before alphanumerics
+        text = re.sub(r'([,;:])([A-Za-z0-9])', r'\1 \2', text)
 
-        # Split by punctuation to find potential sentences/segments
-        # Keep delimiters to reconstruct later
-        segments = re.split(r'([.!?]\s+)', text)
-        # Recombine: segments are like ["Sentence1", ". ", "Sentence2", ". ", ...]
-        if len(segments) == 1:
-            segments = [text]
+        # Split into sentences, keeping punctuation ATTACHED (no stray delimiters).
+        # Don't split after a digit-period ("1. open the app" stays together).
+        sentences = [s.strip() for s in
+                     re.split(r'(?<!\d\.)(?<=[.!?])\s+', text) if s.strip()]
+        if not sentences:
+            return text
 
-        formatted_parts = []
-        i = 0
-        while i < len(segments):
-            segment = segments[i].strip()
-            if not segment:
-                i += 1
-                continue
+        def _cap(s: str) -> str:
+            """Capitalize the first character of a sentence."""
+            if not s:
+                return s
+            return s[0].upper() + s[1:] if len(s) > 1 else s.upper()
 
-            # Check if this segment is a list/introduction that should be formatted
-            formatted = None
-
-            # Pattern A: List after common verbs, with comma-separated items
-            # e.g., "I need apples, bananas, and oranges" or "Buy milk, eggs, bread"
-            list_verbs = r'(?:I (?:need|want|would like|am going to|plan to|should)|' \
-                         r'(?:Please|Can you|Would you|Let\'s|We|You|They) (?:should|could|might|must|need to|want to|have to)|' \
-                         r'(?:buy|get|pick up|grab|purchase|add|include|contains?|needs?)\s+)'
-            list_match = re.match(rf'^{list_verbs}(.+?)(?:[.!?]?)$', segment, re.IGNORECASE)
-            if list_match:
-                items_text = list_match.group(1)
-                # Smart split: commas, 'and', 'or'
-                items = re.split(r',\s*(?:and\s+)?|,?\s+and\s+|,?\s+or\s+', items_text)
-                items = [item.strip().rstrip('.!?') for item in items if item.strip()]
-
+        # --- 1. Category list: "Fruits: bananas, apples. Vegetables: carrots." ---
+        # Allows an optional intro sentence ("I'm going shopping. ...") before
+        # the category run; the trailing run of category sentences must be >= 2.
+        intro_parts = []
+        cat_run = []
+        for sentence in sentences:
+            m = re.match(r'^([A-Za-z][A-Za-z\s]{0,40}):\s*(.+)$', sentence)
+            if m and ',' in m.group(2):
+                items = [i.strip().rstrip('.!?') for i in
+                         re.split(r',\s*|\s+and\s+', m.group(2)) if i.strip()]
                 if len(items) >= 2:
-                    # Preamble before the list verb
-                    preamble = segment[:list_match.start(1)].strip()
-                    if preamble:
-                        formatted = preamble + '\n\n' + '\n'.join(f'• {item.capitalize()}' for item in items)
-                    else:
-                        formatted = '\n'.join(f'• {item.capitalize()}' for item in items)
-
-            # Pattern B: Numbered sequences using ordinals
-            if not formatted and re.search(r'\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|1st|2nd|3rd|4th|5th|\d+\.)\b', segment, re.IGNORECASE):
-                # Split by ordinal markers
-                steps = re.split(
-                    r'\s*(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|1st|2nd|3rd|4th|5th|\d+\.)\s*[.,:)]?\s*',
-                    segment,
-                    flags=re.IGNORECASE
+                    cat_run.append((m.group(1).strip(), items))
+                    continue
+            if cat_run:
+                break  # a non-category sentence after the run -> not a clean list
+            intro_parts.append(sentence)
+        if len(cat_run) >= 2:
+            blocks = []
+            if intro_parts:
+                blocks.append(' '.join(_cap(s) for s in intro_parts))
+            for cat, items in cat_run:
+                blocks.append(
+                    f"**{_cap(cat)}:**\n" +
+                    '\n'.join(f"• {_cap(item)}" for item in items)
                 )
-                steps = [s.strip().rstrip('.,!?') for s in steps if s.strip()]
+            return '\n\n'.join(blocks)
 
-                if len(steps) >= 2:
-                    formatted = '\n'.join(f'{i+1}. {step.capitalize()}' for i, step in enumerate(steps))
+        # --- 2. Numbered steps: "1. ... 2. ... 3. ..." ---
+        steps = []
+        for sentence in sentences:
+            m = re.match(r'^(\d+)[\.,:)]\s+(.+)$', sentence)
+            if m:
+                steps.append(_cap(m.group(2)))
+            else:
+                steps = []
+                break
+        if len(steps) >= 2:
+            return '\n'.join(f"{i}. {step}" for i, step in enumerate(steps, 1))
 
-            # Pattern C: Category headers with colon
-            if not formatted:
-                # Handle multiple categories in same segment? Split by period first
-                # e.g., "Fruits: apples, bananas. Vegetables: carrots, celery."
-                sub_segments = re.split(r'\.\s+', segment)
-                formatted_subs = []
-                for sub in sub_segments:
-                    sub = sub.strip().rstrip('.!?')
-                    if not sub:
-                        continue
-                    colon_match = re.match(r'^([^:]+):\s*(.+)$', sub)
-                    if colon_match:
-                        category = colon_match.group(1).strip()
-                        items_text = colon_match.group(2)
-                        # Split items by commas and 'and'
-                        items = re.split(r',\s*|\s+and\s+', items_text)
-                        items = [item.strip().rstrip('.!?') for item in items if item.strip()]
-                        if len(items) >= 2:
-                            formatted_subs.append(f'**{category.capitalize()}:**\n• ' + '\n• '.join(item.capitalize() for item in items))
-                        else:
-                            formatted_subs.append(sub.capitalize())
-                    else:
-                        formatted_subs.append(sub.capitalize())
-                if len(formatted_subs) > 1 or any('**' in s for s in formatted_subs):
-                    formatted = '\n\n'.join(formatted_subs)
-
-            # Default: clean up
-            if not formatted:
-                # Capitalize first letter of the segment
-                segment = segment.strip()
-                if segment:
-                    # Ensure first character is uppercase
-                    segment = segment[0].upper() + segment[1:] if len(segment) > 1 else segment.upper()
-                    # Fix spacing around punctuation
-                    segment = re.sub(r'\s+([.,!?;:])', r'\1', segment)
-                    segment = re.sub(r'([.,!?;:])([^\s])', r'\1 \2', segment)
-                    formatted = segment
-
-            formatted_parts.append(formatted)
-            i += 1
-
-        # Also add the separators (like ". ") if they exist
-        # Actually we stripped them, but we need to join with appropriate punctuation
-        # Simpler: just double newline between parts
-        result = '\n\n'.join(formatted_parts)
-
-        # Clean up
-        result = re.sub(r'\n{3,}', '\n\n', result)
-        return result.strip()
+        # --- 3. Natural prose: one flowing paragraph ---
+        return ' '.join(_cap(s) for s in sentences)
 
     @property
     def is_loaded(self) -> bool:

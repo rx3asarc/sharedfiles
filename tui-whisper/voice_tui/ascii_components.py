@@ -20,6 +20,41 @@ def format_time(seconds: float) -> str:
     return f"{minutes:02d}:{secs:05.2f}"
 
 
+def _wrap_text(text: str, width: int) -> List[str]:
+    """Wrap text to fit a width, splitting on spaces (word wrap).
+
+    Args:
+        text: Text to wrap
+        width: Maximum line width
+
+    Returns:
+        List of wrapped lines
+    """
+    if width < 1:
+        return []
+    words = text.split(' ')
+    lines = []
+    current = ""
+    for word in words:
+        candidate = word if not current else current + ' ' + word
+        if len(candidate) <= width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            # Long unbreakable word: hard-slice it
+            if len(word) > width:
+                while len(word) > width:
+                    lines.append(word[:width])
+                    word = word[width:]
+                current = word
+            else:
+                current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
 def create_ascii_bar(level: float, width: int, fill: str = '#', empty: str = '.') -> str:
     """Create ASCII progress bar.
 
@@ -264,7 +299,10 @@ class ASCIIHistoryLog:
             self.entries.clear()
 
     def render(self, height: int, max_width: int = 82) -> List[str]:
-        """Returns list of formatted entry strings.
+        """Returns list of formatted entry strings, wrapping long entries.
+
+        Entries wrap across multiple lines (instead of truncating with ...),
+        so multi-sentence transcriptions display fully and read naturally.
 
         Args:
             height: Number of lines available
@@ -276,24 +314,26 @@ class ASCIIHistoryLog:
         lines = []
 
         with self.lock:
-            # Calculate visible range (make a copy of the slice to avoid holding lock during formatting)
+            # Make a copy of the visible slice (avoid holding lock during formatting)
             visible_entries = list(self.entries[self.scroll_offset:self.scroll_offset + height])
 
         for timestamp, text in visible_entries:
-            # Format: "14:32:15 "This is the transcription...""
             time_str = timestamp.strftime("%H:%M:%S")
-
-            # Calculate available width for text (minus timestamp and quotes)
+            # Available width for text (minus timestamp + quote/space characters)
             text_width = max_width - len(time_str) - 4  # 4 for ' ""' and space
 
-            # Truncate text if needed
-            if len(text) > text_width:
-                display_text = text[:text_width - 3] + "..."
-            else:
-                display_text = text
-
-            line = f'{time_str} "{display_text}"'
-            lines.append(line)
+            first = True
+            for chunk in _wrap_text(text, text_width):
+                if first:
+                    lines.append(f'{time_str} "{chunk}"')
+                    first = False
+                else:
+                    # Continuation line: timestamp area padded, quote continues
+                    lines.append(f'{" " * (len(time_str) + 1)}"{chunk}')
+                if len(lines) >= height:
+                    break
+            if len(lines) >= height:
+                break
 
         # Fill remaining height with empty lines
         while len(lines) < height:
