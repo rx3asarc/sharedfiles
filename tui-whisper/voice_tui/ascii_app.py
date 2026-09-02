@@ -105,6 +105,7 @@ class VoiceToTextASCIIApp:
         self.settings_edit_index = -1
         self.in_hotkey_capture = False
         self.settings_message = ""
+        self._pending_modifier_key = None  # first modifier held during capture
 
         # Settings definitions: (display_name, attribute_name, type, [choices if type='choice'])
         self.settings_defs = [
@@ -386,6 +387,8 @@ class VoiceToTextASCIIApp:
                 self.settings_edit_index = self.settings_cursor
                 current_value = getattr(self.controller.config, attr_name)
                 self.settings_edit_buffer = str(current_value)
+                # For bool/choice, the current value is preselected so Tab
+                # cycles from here and Enter just saves.
                 self.needs_render = True
 
     def _handle_settings_edit_key(self, key):
@@ -441,6 +444,31 @@ class VoiceToTextASCIIApp:
         elif key == 'backspace':  # Backspace
             self.settings_edit_buffer = self.settings_edit_buffer[:-1]
             self.needs_render = True
+        elif key == 'tab':  # Tab: cycle bool/choice options
+            setting = self.settings_defs[self.settings_edit_index]
+            type_ = setting[2]
+            choices = setting[3] if len(setting) > 3 else None
+            if type_ == 'bool':
+                # Toggle from the CURRENT BUFFER (not persisted config) so
+                # repeated Tabs flip True<->False reliably.
+                current_buf = self.settings_edit_buffer.strip().lower()
+                is_true = current_buf in ('true', '1', 'yes', 'on')
+                self.settings_edit_buffer = 'False' if is_true else 'True'
+                self.settings_message = f"{setting[0]}: Tab cycles. Enter to save."
+                self.needs_render = True
+            elif type_ == 'choice' and choices:
+                current = self.settings_edit_buffer.strip()
+                try:
+                    idx = choices.index(current)
+                except ValueError:
+                    idx = -1
+                nxt = choices[(idx + 1) % len(choices)]
+                self.settings_edit_buffer = str(nxt)
+                self.settings_message = f"{setting[0]}: Tab cycles. Enter to save."
+                self.needs_render = True
+            else:
+                self.settings_message = f"Tab not available for {setting[0]} (type text)"
+                self.needs_render = True
         else:
             # Printable characters and space
             if key == 'space':
@@ -456,10 +484,13 @@ class VoiceToTextASCIIApp:
     def _handle_hotkey_capture_key(self, key):
         """Handle keypress during hotkey capture (in settings mode).
 
-        Only commits when a NON-modifier key is pressed (with at least one
-        modifier held). Pure modifier presses (Ctrl then Alt) are waiting
-        states - they must never commit a modifier-chord like "ctrl+alt",
-        which isn't a valid hotkey and would reset on next launch.
+        Commits when:
+          - A NON-modifier key is pressed with >=1 modifier held (e.g. Ctrl+X), OR
+          - The user presses a second MODIFIER while one is already held
+            creating a modifier-chord (e.g. Ctrl+Alt, used as a press-and-hold
+            hotkey). Both are valid combos; both persist.
+        Previously pure-modifier presses were ignored so Ctrl+Alt could never
+        be captured - that's the hotkey users here actually use.
         """
         if key == 'esc':  # Cancel
             self.in_hotkey_capture = False
@@ -467,9 +498,7 @@ class VoiceToTextASCIIApp:
             self.needs_render = True
             return
 
-        # Is this key a pure modifier? If so, keep waiting for a real key.
-        if key in ('ctrl', 'control', 'alt', 'altgr', 'shift', 'win', 'windows', 'cmd'):
-            return
+        is_modifier = key in ('ctrl', 'control', 'alt', 'altgr', 'shift', 'win', 'windows', 'cmd')
 
         # Build set of all currently pressed modifiers (normalized)
         pressed_mods = []
@@ -481,6 +510,46 @@ class VoiceToTextASCIIApp:
             pressed_mods.append('shift')
         if keyboard.is_pressed('win') or keyboard.is_pressed('windows') or keyboard.is_pressed('cmd'):
             pressed_mods.append('win')
+
+        # Normalize the key name
+        normalized_key = key
+        if normalized_key in ('control',):
+            normalized_key = 'ctrl'
+        elif normalized_key in ('altgr',):
+            normalized_key = 'alt'
+        elif normalized_key in ('windows', 'cmd'):
+            normalized_key = 'win'
+
+        # If this key is itself a modifier and it's in the pressed list, exclude it
+        if is_modifier and normalized_key in pressed_mods:
+            pressed_mods.remove(normalized_key)
+
+        if is_modifier:
+            # A modifier press ALWAYS records state; only a SECOND DISTINCT
+            # modifier (while the first is held) commits a chord like ctrl+alt.
+            if self._pending_modifier_key is None:
+                # First modifier held - record it and wait for another or a key
+                self._pending_modifier_key = normalized_key
+                self.settings_message = "Keep holding - add another modifier or press a key..."
+                self.needs_render = True
+                return
+            if normalized_key != self._pending_modifier_key and len(pressed_mods) >= 1:
+                # Second DISTINCT modifier pressed while first held -> commit chord
+                chord = '+'.join(sorted(pressed_mods + [normalized_key]))
+                self._pending_modifier_key = None
+                self.controller.reconfigure_hotkey(chord)
+                self.in_hotkey_capture = False
+                save_err = getattr(self.controller, "_last_save_error", None)
+                self.settings_message = (f"Hotkey set (not saved: {save_err})" if save_err
+                                         else f"Hotkey set to {chord}")
+                self.needs_render = True
+                return
+            # Same modifier repeated (repeat event) - keep waiting
+            self.needs_render = True
+            return
+
+        # A real (non-modifier) key below
+        self._pending_modifier_key = None
 
         # A real key without any modifier held isn't a hotkey - prompt
         if not pressed_mods:
