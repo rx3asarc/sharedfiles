@@ -87,12 +87,13 @@ class VoiceToTextController:
         self._hotkey_active = False  # Guard against key repeat
 
     def initialize(self) -> bool:
-        """Initialize all components.
+        """Initialize all components (runs in background thread).
 
         Returns:
             True if initialization successful, False otherwise.
         """
         try:
+            self.init_error = ""
             # Initialize recorder (lazy import - keeps startup fast)
             recorder_mod = _get_recorder()
             AudioRecorder = recorder_mod.AudioRecorder
@@ -138,15 +139,12 @@ class VoiceToTextController:
             return True
 
         except Exception as e:
+            self.init_error = str(e)
             print(f"\nError: {e}")
             print("\nTroubleshooting:")
             print("1. Check that a microphone is connected")
             print("2. Check microphone permissions in system settings")
             print("3. Try selecting a different microphone")
-            return False
-
-        except Exception as e:
-            print(f"\nUnexpected error during initialization: {e}")
             return False
 
     def _on_model_loaded(self):
@@ -194,6 +192,17 @@ class VoiceToTextController:
                     _dbg("Shutting down, aborting start_recording")
             except:
                 pass
+            return
+
+        # Recorder may not be ready yet (background init) - don't crash
+        if self.recorder is None:
+            _dbg("start_recording before init ready")
+            if self.app:
+                try:
+                    self.app.call_from_thread(
+                        self.app.show_error, "Still starting up...")
+                except Exception:
+                    pass
             return
 
         if self.recorder.is_recording:
@@ -248,7 +257,7 @@ class VoiceToTextController:
             return
 
         try:
-            if not self.recorder.is_recording:
+            if self.recorder is None or not self.recorder.is_recording:
                 with open("debug.log", "a") as f:
                     _dbg("stop_recording but recorder not recording - ignoring")
                 return
@@ -321,6 +330,12 @@ class VoiceToTextController:
         try:
             with open("debug.log", "a") as f:
                 _dbg("_transcribe_audio: starting transcription")
+            # Transcriber may still be initializing - don't crash
+            if self.transcriber is None:
+                if self.app:
+                    self.app.call_from_thread(
+                        self.app.show_error, "Still starting up...")
+                return
             # Transcribe with local formatting (sub-millisecond, no LLM)
             # skip_formatting=False applies local formatter; LLM formatter disabled in config
             text = self.transcriber.transcribe(audio_data, self.config.sample_rate, skip_formatting=False)
@@ -404,7 +419,7 @@ class VoiceToTextController:
     def _update_duration(self):
         """Update recording duration, audio level, and peak level in UI."""
         try:
-            if self.recorder.is_recording and self.app:
+            if self.recorder and self.recorder.is_recording and self.app:
                 duration = time.time() - self.recording_start_time
                 # Get real-time audio level and peak from microphone
                 audio_level = self.recorder.get_current_level()
@@ -583,18 +598,25 @@ class VoiceToTextController:
                 pass
 
     def run(self):
-        """Run the application."""
-        # Create and run TUI app
+        """Run the application.
+
+        The TUI spawns immediately; heavy initialization (importing recorder/
+        transcriber, microphone check, model warm-up) runs in a background
+        thread so there is no multi-second gap after the banner.
+        """
         self.app = VoiceToTextApp(
             config=self.config,
             controller=self
         )
 
-        # Show model warm-up state immediately (load happens in background)
-        if not self.transcriber.is_loaded:
-            self.app.set_status("idle", "Loading model...")
+        # Show startup status immediately
+        self.app.set_status("idle", "Starting up...")
 
-        # Setup hotkey in background
+        # Background initialization: lazy-imports heavy modules off the
+        # critical path so the TUI paints instantly.
+        threading.Thread(target=self._init_background, daemon=True).start()
+
+        # Setup hotkey
         hotkey_ready = self.setup_hotkey()
 
         if not hotkey_ready:
@@ -605,6 +627,30 @@ class VoiceToTextController:
             self.app.run()
         finally:
             self.shutdown()
+
+    def _init_background(self):
+        """Run initialize() off the startup path; surface result in the TUI."""
+        try:
+            ok = self.initialize()
+        except Exception as e:
+            ok = False
+            self.init_error = str(e)
+        if not self.app:
+            return
+        try:
+            if ok:
+                if self.transcriber and not self.transcriber.is_loaded:
+                    self.app.call_from_thread(
+                        self.app.set_status, "idle", "Loading model...")
+                else:
+                    self.app.call_from_thread(
+                        self.app.set_status, "idle", "Ready")
+            else:
+                msg = getattr(self, "init_error", "Initialization failed")
+                self.app.call_from_thread(
+                    self.app.show_error, f"Init failed: {msg}. q to quit")
+        except Exception:
+            pass
 
     def shutdown(self):
         """Clean up resources."""
@@ -738,11 +784,8 @@ def main():
     # Create controller
     controller = VoiceToTextController(config)
 
-    # Initialize components
-    if not controller.initialize():
-        print("\nInitialization failed. Exiting.")
-        sys.exit(1)
-
+    # NOTE: initialize() now runs in a background thread inside controller.run(),
+    # so the TUI spawns immediately after the banner - no multi-second gap.
     print("\nStarting TUI application...")
     print("=" * 50)
     print()
