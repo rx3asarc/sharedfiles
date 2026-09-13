@@ -9,7 +9,8 @@ the context needed to interpret the results and avoid redoing verified work.
 
 | File | What it is |
 |---|---|
-| **`RESEARCH-BRIEFS.md`** | **The deliverable.** Three self-contained prompts, ready to paste |
+| **`BRIEF-2-URANIUM-VEHICLES.md`** | **The uranium vehicles brief — standalone, self-contained, not yet answered** |
+| `RESEARCH-BRIEFS.md` | All three briefs in one file (brief 2 also stands alone above) |
 | `ALREADY-VERIFIED.md` | What has been checked against primary sources — and the open questions |
 | `GLOSSARY.md` | Plain-English definitions for every technical and financial term used |
 
