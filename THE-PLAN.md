@@ -165,22 +165,52 @@ this project found most exposed to delays.
 
 ### Option C — split the theme
 
-Half URNU, half NUKL. Satisfies both mandates at comparable weight, at the cost of managing two
-positions and paying two TERs.
+Half URNU, half NUKL. **Rejected — see the decision below.**
 
-### The decision, reframed
+---
 
-> **Not:** "the microreactor mandate is underweight."
->
-> **But:** "uranium and microreactors are different bets. Which did you mean more?"
->
-> - If **uranium** is the point and reactors are a hedge → **Option A**.
-> - If **reactor technology** is the point → **Option B**.
-> - If both matter equally → **Option C**.
+### ✅ DECISION — CLOSED: keep URNU (Option A)
 
-Under Option A, ~3% microreactor is a *deliberate* choice, not a shortfall. Under Option B, ~13%
-uranium becomes the deliberate choice. **Either is defensible; the plan requires the choice to
-be made rather than defaulted into.**
+**Neither URNU nor NUKL delivers microreactor exposure.**
+
+```
+Oklo weight   NUKL 8.20%   vs   URNU ~7.6%
+              -> a ~0.15% portfolio difference. Immaterial.
+
+NUKL's ~30% "reactor technology" bloc
+  IHI · Mitsubishi Heavy · Hitachi · Fuji Electric
+  Samsung C&T · AtkinsRealis
+  = diversified industrials where nuclear is a REVENUE SLICE.
+    Look-through nuclear content sits well below the headline weight.
+
+=> NUKL is a nuclear-INDUSTRIAL fund, not a microreactor fund.
+```
+
+**Corroborating evidence, independent of the constituent weights:**
+
+```
+NUKL sector split     Industrials 44.33%   >   Energy 37.73%
+NUKL country split    Japan 23.28%
+```
+
+The largest sector is **industrials**, not energy — which is the structural signature of a
+nuclear-industrial fund rather than a reactor-developer fund. Japan at 23.28% is the Japanese
+heavy-industry bloc (IHI, MHI, Hitachi, Fuji Electric).
+
+**Decision: accept ~3% microreactor exposure. Keep URNU.**
+
+**Reason recorded:** every microreactor pure-play examined in this project failed the
+self-funding test. Oklo specifically: **missed its 4 Jul criticality target, filed a $1bn ATM on
+11 Sep, sits at a 52-week low, −81% peak-to-trough.** Adding reactor-developer weight would mean
+adding the exact failure mode the research identified.
+
+**Trigger that would reopen this:** only if the mandate is restated as **"nuclear buildout
+broadly"** rather than "microreactors" — in which case **swap** to NUKL. **Never hold both.**
+
+⚠️ **Source caveat on the NUKL weights.** The constituent weights above are **single-sourced
+(justETF)**. VanEck's own holdings page is JavaScript-gated and could not be retrieved. The
+sector and country aggregates corroborate the *character* of the fund but do not independently
+confirm the individual weights. **Treat the specific percentages as unverified.**
 
 ---
 
@@ -367,11 +397,10 @@ Remaining ~46 positions  ~36%, individually very small
 
 **That is precisely the argument for 73/27 — the diversification lives in the base.**
 
-### ⚠️ Open item
+### ✅ Former open item — now closed
 
-**Under Option A (§5), the microreactor mandate is satisfied at ~3% of the portfolio.** This is
-a stated fact, not a recommendation. The decision between Options A, B and C is open and is the
-single judgement this document does not make.
+**The microreactor mandate is satisfied at ~3% of the portfolio, and that is accepted.**
+Decision, reasoning and reopen trigger are recorded in §5.
 
 ---
 
@@ -436,6 +465,12 @@ established, or an assumption
 | 5 | "no tax drag" from a `0,0000` record | misread a one-year-lagged filing as current | OeKB fiscal-year check |
 
 **Three of the five were introduced by this project while correcting earlier mistakes.**
+
+> **REVISION PASSES HAVE STOPPED.** Revision passes introduced 3 of the 5 recorded errors.
+> The marginal value of further passes is **negative** — each one has been at least as likely
+> to add an error as to remove one. **Remaining verification occurs at the broker, not in this
+> file.** Confirm every ISIN, TER and fund property against the broker's own product page and
+> the issuer's KID at the point of purchase.
 
 ---
 
