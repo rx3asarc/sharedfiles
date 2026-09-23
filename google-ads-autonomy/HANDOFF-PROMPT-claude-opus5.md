@@ -257,10 +257,38 @@ These are non-negotiable. The design must obey them.
 - Distinguish and label three states everywhere: `MEASURED_ZERO` (we looked, it was genuinely zero), `NO_DATA` (we looked, there was nothing to see), `BROKEN` (we couldn't look). Conflating these is the bug that cost this account nine weeks.
 
 **Autonomy boundaries**
-- The system may autonomously: read everything, create drafts, adjust budgets within its cap, pause underperformers, add negative keywords, create new ad groups/ads/keywords inside approved campaigns, propose (not launch) entirely new campaigns, adjust bids within bands.
-- The system must escalate to the owner (via digest) before: launching a new campaign from scratch, changing account-level conversion goals, spending above cap, pausing an entire campaign, enabling a new campaign type (PMax/Shopping/Video/Demand Gen), or any change exceeding its blast-radius limit.
-- The escalation channel must be a real messaging platform the owner reads (Telegram is wired for this box). A digest nobody receives is the same as silence.
-- The owner's stated preference: **he does not want to guide it.** Escalations must be decisions-in-absence-of-data or genuine strategy calls, not "please approve my routine work." Design the digest so that the default is *it already acted correctly and here's why*.
+- **The end-state authority is full autonomous launch.** The system creates campaigns, ad groups, ads, keywords, negatives, budgets and bids on its own, with no pre-approval. This is the target, not a stretch goal. A design that only *proposes* campaigns has failed the brief.
+- **Autonomy is earned in stages, not granted at t=0** (trust ladder below). It starts with reversible mutation classes and unlocks launch authority by proving it can correctly attribute outcomes to its own actions, measured against its own predictions.
+- **Escalate ≠ ask permission.** Notifications and approval requests are different mechanisms. Never gate routine work on owner input.
+- **Silence means proceed, not stop.** Any proposal step must carry a bounded default action that executes after a stated window if the owner doesn't reply. An approval gate where no-reply = no-action is functionally "he has to guide it" and fails the brief. He gets **after-the-fact veto with a documented rollback**, not veto-by-inaction.
+- The only true **blocking** gates are: exceeding the hard spend cap, changing account-level conversion goals / attribution settings / value rules, and anything not cleanly reversible on Google's side (removing conversion actions, hard-deleting campaigns — pause instead).
+- Every autonomous launch happens inside a **bounded incubation envelope** so being wrong is survivable: new entities start capped, time-boxed, and pre-committed to auto-kill conditions.
+- The escalation channel must be a real messaging platform he reads (Telegram is wired for this box). A digest nobody receives is the same as silence.
+- The owner's stated preference: **he does not want to guide it.** The digest's default posture is *it already acted, here's what and why* — not *please approve my routine work*.
+
+**Progressive trust ladder — define each stage and its promotion/demotion criteria:**
+
+| Stage | Unlocked | Promotion criterion |
+|---|---|---|
+| 0 **Observe** | read-only. Records would-be decisions + predicted effects, acts on nothing | 14 days with attribution verified end-to-end and its own predicted-vs-actual reconciliations inside a stated error band |
+| 1 **Reversible** | negative keywords, keyword/entity pauses, creative rotation, budget reallocation inside cap | a stated run of decisions with zero guardrail breaches |
+| 2 **Build** | new ad groups, new ads/RSA variants, new keywords inside existing campaigns | attribution proven on entities it created at this stage |
+| 3 **Launch** | new campaigns from scratch, new campaign types (Shopping/PMax/Demand Gen/Video) | launched entities that hit their leading-indicator floor, *and* it correctly auto-killed the ones that didn't |
+| 4 **Scale** | budget expansion above baseline, geo/audience expansion, larger exploration allocation | sustained contribution above target across a stated horizon |
+
+**Demotion must exist.** A guardrail breach, a mis-attributed outcome, a spend anomaly, or a broken tracking pipeline drops the system back a stage automatically — and it must announce that in the digest, not hide it.
+
+**Launch envelope — the default bound on any self-initiated entity:**
+- Capped at N% of the hard daily budget for its first M days (architect sets N and M with justification for this account's scale).
+- **Mandatory pre-flight, all must pass before anything executes:**
+  - the landing page returns HTTP 200 with a direct fetch — a 301 means the URL is wrong, not a redirect to follow;
+  - conversion tracking present and verified live on that path;
+  - UTM standard applied so the entity is attributable from day one;
+  - copy passes Google policy + Swedish language-quality + claims-compliance gates;
+  - not a duplicate of an entity already in the memory-of-failure store;
+  - a written hypothesis: what it tests, the metric that confirms or refutes it, a predicted value with a confidence, and a deadline.
+- **Pre-committed auto-kill.** If it misses its leading-indicator floor by its deadline, it pauses itself and writes the negative result to memory. No owner action required.
+- Every launch lands in the decision ledger with a rollback handle. Pause beats delete. Drafts are the staging mechanism.
 
 **Operational**
 - Everything runs on cron on one box, in Python/Shell/SQLite, against these CLIs. No new infrastructure unless you justify it hard.
@@ -277,7 +305,7 @@ These are non-negotiable. The design must obey them.
 
 Design must cover all of these — each as a named subsystem with inputs, decision logic, outputs, and failure behaviour:
 
-1. **Self-initiating campaign creation.** The system launches new campaigns without a prompt. What triggers a launch? What is the idea pipeline? Where do keywords come from? What validates a launch is worth the spend?
+1. **Self-initiating campaign creation.** The system launches new campaigns without a prompt. What triggers a launch? What is the idea pipeline? Where do keywords come from? What validates a launch is worth the spend? What envelope does it launch inside, and what is the pre-committed condition under which it kills its own campaign? A design where a human clicks "approve" before a campaign goes live does not satisfy this requirement.
 2. **Self-initiating ad group creation** — new themes/buckets within campaigns, with keyword sets and matched ad copy.
 3. **Self-initiating ad creation** — new RSAs, headlines, descriptions, sitelinks, callouts, images. Where does copy come from? How is it validated (policy, brand voice, Swedish language quality, claims legality)?
 4. **Keyword intelligence** — discovery, expansion, grouping, match-type strategy, and how search volume/CPC forecasts (`keyword-plans`) feed selection.
@@ -357,14 +385,14 @@ Produce a **technical architecture and implementation specification** — the do
 4. **Data model** — full SQLite DDL: every table, column, type, index, and its purpose. Include the entity model from Section 8 (campaigns, ad groups, ads, keywords, negatives, landers, intents, personas, products, products↔keywords, decisions, outcomes, experiments, memory-of-failure, run-ledger). Include provenance columns (source, harvested_at, attribution_window, currency) on every fact table.
 5. **Ingestion layer** — per data source: what to pull, at what granularity, on what cadence, via which CLI/API call, into which table, with what freshness and completeness assertions, and what to do on failure. Cover the gaps named in Section 4 (ad-group/ad/keyword/geo/device granularity, Shopify line items, GMC performance, search terms, auction insights, asset performance).
 6. **Attribution and measurement integrity** — how Google Ads (AUD), GA4 (conversion value), Shopify (SEK), and Klaviyo (lagged/assisted) are reconciled; which source is authoritative for which question; the canonical timezone and currency handling; the conversion-action hygiene fix; the UTM standard; how discrepancies are detected and surfaced. Include the end-to-end verification job that proves a click in Ads becomes an order in Shopify and is visible in both.
-7. **The decision engine** — for each decision class (budget reallocation, bid adjustment, keyword pause/enable, negative addition, creative rotation, ad group creation, campaign launch, geo/device adjustment): the inputs, the deterministic rule/policy, the thresholds with their justification, the minimum-data guard, the confidence/credible-interval logic, the action bounds, the rollback plan, and the escalation condition. Be explicit about the do-nothing branch.
-8. **Scaling and exploration** — how winners grow, how new ideas enter the portfolio, the exploration budget, the promotion/demotion lifecycle of a campaign, and the guardrails.
-9. **Creative and copy generation** — the pipeline from intent/persona/pain-point → keywords → ad concepts → headlines/descriptions → lander selection, including the LLM stages, the validation gates (Google policy, Swedish language quality, claims compliance, brand voice), and the review/MOE gate before publication.
+7. **The decision engine** — for each decision class (budget reallocation, bid adjustment, keyword pause/enable, negative addition, creative rotation, ad group creation, ad creation, keyword creation, campaign launch, geo/device adjustment): the inputs, the deterministic rule/policy, the thresholds with their justification, the minimum-data guard, the confidence/credible-interval logic, the action bounds, the rollback plan, and the escalation condition. For every **creation** decision (new ad group / ad / keyword / campaign) additionally specify the hypothesis record, the launch envelope parameters (N and M), the leading-indicator floor that keeps it alive, and the auto-kill rule. Be explicit about the do-nothing branch.
+8. **Scaling and exploration** — how winners grow, how new ideas enter the portfolio, the exploration budget, the launch envelope applied to every new entity, the full lifecycle of a campaign from incubation through promotion to scaling or retirement, and the guardrails on each transition.
+9. **Creative and copy generation** — the pipeline from intent/persona/pain-point → keywords → ad concepts → headlines/descriptions → lander selection, including the LLM stages, the validation gates (Google policy, Swedish language quality, claims compliance, brand voice), and the review/MOE gate before publication. Specify how this pipeline runs fully autonomously — the copy must reach live status without a human in the loop, with the gates as automated filters, not approval steps.
 10. **Self-healing** — the failure taxonomy, per-class detection, per-class repair, the escalation path, and the health/self-test suite that proves the system is alive and truthful (this should include *deliberate* synthetic tests, e.g. detecting a null conversion feed rather than trusting it).
 11. **Self-learning** — what is recorded, how outcomes are attributed back to decisions, how confidence/weights update over time, how the memory is queried at decision time, and how negative results are preserved.
 12. **Scheduling and runtime** — the full cron/job map with cadences, dependencies, ordering, idempotency, and the tiered refresh strategy. Include the run-ledger schema and the freshness/staleness policy.
-13. **Safety, guardrails and kill switch** — the cap layer the optimiser cannot override, blast-radius limits, the approval/escalation matrix, the one-command halt, and the self-kill conditions.
-14. **Owner interface** — the digest format (weekly and monthly), the escalation format, the one-message redirect mechanism, and what the owner can see about the system's reasoning and confidence.
+13. **Safety, guardrails and kill switch** — the cap layer the optimiser cannot override, blast-radius limits, the progressive trust ladder with its concrete promotion test and demotion triggers, the notification-vs-approval matrix (make clear which items are true blocking gates and which are notify-after-the-fact), the one-command halt, and the self-kill conditions.
+14. **Owner interface** — the digest format (weekly and monthly), the escalation format for the handful of true blocking gates, the one-message redirect mechanism, and what the owner can see about the system's reasoning, confidence, and recent autonomous launches. The digest's default posture must be *it already acted — here's what, why, and what it predicts*.
 15. **Build plan** — phased and sequenced, ordered by dependency, with a clear definition of done per phase, and an explicit "Phase 0" foundation (repair the broken things in Section 4 first — nothing above works on a lie). Rough effort sizing per phase. Identify what can be built and verified *without spending money* versus what needs live budget.
 16. **Open questions and assumptions** — anything you had to assume, and what would change the design.
 17. **Appendices** — DDL, example decision records, example digest, the negative-keyword vocabulary seed, the intent/persona matrix, the policy-compliance checklist, and worked examples of the decision engine handling three concrete cases from the real data in Section 3.4/3.6 (e.g. "Investigative spent 295 AUD on 141 clicks for 0 conversions before being paused — what should the system have done, in what order, and what would it have learned?").
@@ -380,8 +408,9 @@ If you want to sequence aggressively, the highest-value order is roughly:
 1. **Fix the truth layer.** Conversion-action hygiene, GA4→Ads attribution, the `campaign_budget` GAQL bug, ad/keyword/geo/device granularity ingestion, Shopify line items. Without this, every subsequent decision is built on sand.
 2. **Build the entity model and the decision ledger** (empty but correct). Everything writes into it from day one.
 3. **Ship observe-only intelligence for two weeks** and let it record its decisions *without acting*. Compare what it *would* have done against what actually happened. This is free and is the fastest way to calibrate thresholds before risking money.
-4. **Turn on the safe mutation classes** (negatives, pauses, budget within cap) behind the guardrails. Keep campaign launches behind human approval initially.
-5. **Then** enable self-initiated creation, scaling, and exploration — once the loop has demonstrated it can correctly attribute an outcome to its own action.
+4. **Turn on the safe mutation classes** (negatives, pauses, budget within cap) behind the guardrails — Stage 1 on the ladder.
+5. **Then climb the ladder:** Stage 2 (build ad groups / ads / keywords) → Stage 3 (launch campaigns from scratch) → Stage 4 (scale budget, geo, audiences). Promotion is automatic on the stated criteria. The owner is notified, not consulted. Nothing in this sequence waits on a human reply.
+6. **Run a permanent counterfactual lane.** At every stage, a parallel stream keeps computing what it *would* have done on decisions it didn't take, so the system learns from inaction too and the owner always has a counterfactual to audit when he questions a call.
 
 ---
 
@@ -391,6 +420,8 @@ Two things the owner cares about that don't fit neatly into a spec:
 
 First, he has been burned. Jobs here have failed silently for weeks while reporting calm, plausible, zero-data stories. He does not trust dashboards that say things are fine. **The system's credibility rests on it being able to prove, at any moment, that it is alive, that it is measuring correctly, and that it knows the difference between "no" and "unknown."** Build that proof in from the first commit.
 
-Second, he stated the goal as: *"I don't want to have to guide it."* He means it. The measure of this design is that in three months he opens a digest, reads that the system tested four things, killed two, scaled one, and is holding one pending more data — with reasoning he can audit — and his only required action is to change a strategy if he disagrees. If your design still needs him to approve routine work, it has failed the brief.
+Second, he stated the goal as: *"I don't want to have to guide it."* He means it literally. **He is not asking for a system that recommends campaigns — he is asking for one that launches them.** The measure of this design is that in three months he opens a digest and reads that the system launched two campaigns on its own initiative, killed one on its own pre-committed auto-kill rule, scaled the other, negated 40 waste terms, and has a new ad group in incubation — with reasoning he can audit and a rollback handle if he disagrees. His only required act is to change a strategy when he wants to.
+
+The distinction that makes this safe without making it dependent on him: **he holds veto, not approval.** A gate where his silence stops the system is the same thing as having to guide it, just slower. Build for after-the-fact veto with bounded blast radius and documented rollback, and make every autonomous launch survivable in isolation.
 
 Design something that earned the right to be trusted, and that tells the truth when it isn't working.
