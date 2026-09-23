@@ -1,6 +1,12 @@
 # HANDOFF PROMPT → Claude Opus 5
 ## Mission: Architect a Fully Autonomous, Self-Learning, Self-Healing Google Ads System for Nordisk Renhet
 
+> ⛔ **SUPERSEDED — DO NOT HAND THIS FILE TO THE ARCHITECT.**
+> This is the Revision-1 draft (2026-09-23). The current, re-verified handoff prompt is
+> **`google-ads-autonomy/HANDOFF-PROMPT-claude-opus5.md`** (Revision 2). Hand off that one.
+> Kept only for history.
+
+
 > **How to use this document:** paste everything below into Claude Opus 5. It is a prompt, not a report. The final section defines the exact document you must return.
 
 ---

@@ -3,6 +3,7 @@
 **Recipient:** Claude Opus 5 (architect)
 **Author:** OWL (Hermes agent, running on the production server)
 **Date:** 2026-09-23
+**Revision:** 2 (final) — every fact re-verified live against the box at 20:40 CEST. Added 3.12 (first-party server-side tracking stack, already in production), 3.13 (keyword-intel DB), 3.14 (general agent/research/LLM tooling available to the loop), 3.15 (what does not exist), four new entries in Section 4, and corrections to the Klaviyo, GSC-count, `pi-moa` and Postgres claims carried in Revision 1.
 **Status:** Greenfield architecture request. Nothing here is built yet. You are designing the spec that will be handed back for implementation.
 
 ---
@@ -12,7 +13,7 @@
 You are being asked to design a system, not to write the code. The agent that sent you this (OWL) will implement it. That means:
 
 - **Be concrete.** File paths, table schemas, cron cadences, API call shapes, decision rules with real thresholds, state machines. Not "use ML to optimise bids."
-- **Respect the reality in Section 3 and 4.** Those are verified facts from the live account, not assumptions. Everything you design must run against *this* account, *this* server, *these* tools. There is no team, no data warehouse, no ML budget, no Dataflow, no vertex. There is one Linux box, a Go CLI, a SQLite file, and cron.
+- **Respect the reality in Section 3 and 4.** Those are verified facts from the live account, not assumptions. Everything you design must run against *this* account, *this* server, *these* tools. There is no team, no data warehouse, no ML budget, no Dataflow, no vertex. There is one Linux box, a Go CLI, a SQLite file, and cron. **Section 3.14 is the complete list of what the reasoning/generative layers may call; Section 3.15 is what does not exist.** Do not invent a capability that is not in either list.
 - **Design for the failure modes in Section 6.** Every existing automation here that broke did so *silently and plausibly* — it reported "no spend this week, normal for low traffic" while actually being locked out for 9 consecutive weeks. A system that cannot distinguish "nothing happened" from "I am broken" is worse than no system. Fixing this class of bug is a first-class design requirement, not a footnote.
 - **Assume real money.** This spends the owner's cash daily in AUD against a small budget. Every write path needs a blast-radius story.
 - **Section 7 lists what the owner asked for. Section 8 lists what he doesn't know he needs.** Both are requirements. Section 8 is arguably the harder and more valuable half.
@@ -155,8 +156,8 @@ Four ENABLED actions are all flagged `primary_for_goal = true`, and one of them 
 ### 3.5 Google Search Console
 
 - **Harvester:** `/mnt/HC_Volume_105587324/nordisk/bin/harvesters/gsc.sh` — service account, mints its own JWT, scope `webmasters`.
-- **Table:** `traffic_daily` in `nordisk.db` — `date, query, page, clicks, impressions, ctr, position`. **69,864 rows**, freshest date 2026-09-21, indexed on date and page.
-- This is a *rich, underused* asset: full organic query-level and page-level demand signal. Organic queries that convert are the single best source of paid keyword ideas, and organic pages already ranking are the best landing-page candidates. **Your design should explicitly fuse GSC demand into paid keyword/lander selection.** There is also a `gsc_archetype_mapping` table and `traffic_daily_2` (empty).
+- **Table:** `traffic_daily` in `nordisk.db` — `date, query, page, clicks, impressions, ctr, position`. **70,678 rows** (re-verified 2026-09-23; it grows with every daily harvest), freshest date 2026-09-21, indexed on date and page. The live DB is `/mnt/HC_Volume_105587324/nordisk/db/nordisk.db` (per `NORDISK_DB` in `.env`) — be aware a **zero-byte decoy** `/mnt/HC_Volume_105587324/nordisk/nordisk.db` exists at the volume root, and a relative-path misread silently yields an empty database. Use the absolute `db/` path.
+- This is a *rich, underused* asset: full organic query-level and page-level demand signal. Organic queries that convert are the single best source of paid keyword ideas, and organic pages already ranking are the best landing-page candidates. **Your design should explicitly fuse GSC demand into paid keyword/lander selection.** `traffic_daily_2` is present but empty. (`gsc_archetype_mapping` lives in `ads_decisions.db`, not here — see 3.10.)
 
 ### 3.6 Shopify
 
@@ -170,8 +171,8 @@ Four ENABLED actions are all flagged `primary_for_goal = true`, and one of them 
 
 ### 3.7 Klaviyo (email/SMS)
 
-- `klaviyo-pp-cli` installed, config at `/root/.config/klaviyo-pp-cli/config.toml`, local cache at `~/.local/share/klaviyo-pp-cli/data.db`.
-- **Tables:** `klaviyo_flows` (24), `klaviyo_daily` (402), `klaviyo_campaigns` (2), `klaviyo_flow_metrics` (**0 — never populated**). `KLAVIYO_TOKEN` present in `.env`.
+- **Correction to a likely assumption: `klaviyo-pp-cli` is NOT installed here.** Only its Go source (`/root/printing-press/library/klaviyo-pp-cli`) and a config (`/root/.config/klaviyo-pp-cli/config.toml`) exist; there is no binary on `PATH`. Any design step that shells out to `klaviyo-pp-cli` is a **build task**, not a given — or work from the API directly with `KLAVIYO_TOKEN`.
+- **The Klaviyo data is already in `nordisk.db`** (harvested by `bin/harvesters/`), not in a CLI cache: `klaviyo_flows` (24 rows), `klaviyo_daily` (402), `klaviyo_campaigns` (2), `klaviyo_flow_metrics` (**0 — never populated**). `KLAVIYO_TOKEN` is present in `nordisk/.env`.
 - Relevance: owned-channel performance tells you whether paid traffic that *fails to convert immediately* is nonetheless joining flows and converting later. **Lagged contribution and assisted revenue are part of honest ROAS.** Even if Klaviyo stays peripheral, the design must not claim a "loser" on same-day data alone.
 
 ### 3.8 Google Merchant Center
@@ -196,11 +197,66 @@ Four ENABLED actions are all flagged `primary_for_goal = true`, and one of them 
 
 ### 3.11 Supporting automation already running (context for what "self-healing" looks like here)
 
-- `bin/harvesters/run-all.sh` — daily 06:07, runs GSC → Shopify → Klaviyo → Google Ads → compute-metrics → GMC feed → ads-monitor → sync-agent-config, sequentially, logging to `cron/harvest.log`.
+- `bin/harvesters/run-all.sh` — daily 06:07, runs GSC → Shopify → Klaviyo → Google Ads → compute-metrics → GMC feed → ads-monitor → sync-agent-config, sequentially, logging to `cron/harvest.log`. `compute-metrics` writes the derived `daily_metrics(date, metric_name, metric_value)` table in `nordisk.db` (344 rows).
+- `bin/pixel-tracker/nordisk-infra-doctor.py` — daily 05:07, services + endpoints + TLS + DNS + webhook registration + tracker DB + GA4 + Google Ads, then emails a verdict (see 3.12). Also `bin/keyword-intel.py` — Mondays 04:17 (see 3.13).
 - `bin/harvesters/ads-monitor.sh` — daily 06:37. Reports ENABLED-campaign health, flags waste in search terms against a hardcoded waste-word list (`lotion`, `cream`, `moisturizer`, `shampoo`, `lidl`, `bunnings`, competitor brands...), writes findings to the MemPalace diary. **Read-only. Makes no changes.**
 - `bin/weekly-ads-checkpoint.sh` — Mondays 07:07, writes `cron/ads-weekly-checkpoint.json`.
 - **Several cron watchdogs**: Caddy/static-server health every minute, an infra doctor nightly, a harness "comb" that notices issues hourly, a credential-heal actor every 30 minutes (gated).
 - There is also an autonomous **organic content pipeline** (topic mining → research → write → 3-reviewer MOE → publish to Shopify) that already runs unattended. **Its architecture — nightly candidate generation, review gate, verification, publish, notify, self-logging — is the closest existing analogue to what you're being asked to design for paid.** Study it as a template.
+
+### 3.12 First-party conversion tracking — server-side purchase feed (ALREADY LIVE — extend this, don't rebuild)
+
+The owner called tracking "highly vital". Part of it exists, in production, right now. It is the single most important thing in this document to not accidentally design over.
+
+- **Receiver:** `nordisk-tracker.service` (systemd, `Restart=always`) runs `/mnt/HC_Volume_105587324/nordisk/bin/pixel-tracker/tracker.py` — a stdlib `ThreadingHTTPServer` on `127.0.0.1:9123`, published via Caddy at `https://nordisk.vektal.systems/track/purchase` (endpoint live, HTTP 200).
+- **Path:** Shopify **web pixel** (`checkout_completed`) → POST to the tracker → validated → row appended to `pixel_track.db` → forwarded to **GA4 Measurement Protocol** (measurement ID `G-YJP5QDGTHD`; `api_secret` read from `/root/.secrets.env`, deliberately never in browser code).
+- **Web-pixel source + runbook:** `bin/token-obtainer/webpixel-backup/` (`custom_pixel.js`, `pixel_src_index.js`, `container_pre_edit.json`, `WEBPIXEL_RUNBOOK_2026-09-07.md`).
+- **`db/pixel_track.db` tables:**
+  - `purchases(transaction_id PK, received_at, client_id, value, currency, ga4_status, ga4_response, raw, source)` — a **first-party conversion record that stores the GA4 MP HTTP status per row**. 12 rows today: 9 × `204` accepted, 3 × `503 no api_secret configured` (historical, on synthetic `test-1..test-3`; the secret is in place now).
+  - `order_webhooks(order_id PK, received_at, name, total, currency, raw)` — Shopify `orders/create` webhook (registration confirmed green by the doctor), 11 rows.
+- **Why it matters to the ROAS mission:** this is a **server-side, first-party** purchase record carrying a `client_id`, independent of client-side/cookie GA4 and therefore durable under consent loss and ad-blockers. It is the natural spine for the Ads ↔ Shopify ↔ GA4 reconciliation demanded in Section 10.6, and the credible place to anchor "prove a click became an order".
+- **It already has a self-healing precedent — study and evolve it, don't duplicate it:** `bin/pixel-tracker/nordisk-infra-doctor.py` runs daily at 05:07 and checks services, public endpoints, TLS expiry, DNS (SPF/MX/**DKIM**), the Shopify webhook registration, the tracker DB, GA4 read+realtime, the Google Ads refresh path and the Google Ads conversion read — then emails a verdict line.
+  - Its **2026-09-23 verdict was `FAIL`**, and the failures are live problems: Google Ads refresh `TOKEN_REFRESH_FAILED` (intermittent — a manual `gads-auth.py check` later the same day succeeded and reported `live API OK`); GA4 read/realtime probe `purchases(30m)=0`; **DKIM record missing for `vektal.systems`** (SPF and MX pass). It also reports Google Ads conversions as **24–48h import-lagged**: `7d=0.000 ($0.00)`, `30d=0.000 ($27.53 AUD)` — i.e. **conversion *value* present with a zero conversion *count***, another attribution-hygiene symptom.
+
+### 3.13 Keyword intelligence database (pre-existing, underused)
+
+- `db/keyword-intel.db` (~1.2MB), produced by `bin/keyword-intel.py` (cron: Mondays 04:17 — `all`, then `seed-topics --limit 8 --per-theme 1`):
+  - `kw_ideas` **4,298 rows**, `gsc_query` **835**, `gap_ideas` **438**, `competitor_pages` **1,839**.
+- This is mined demand + content-gap intelligence that already exists and is barely wired into anything. **It should be a primary input to the keyword-intelligence and idea-pipeline subsystems (7.4 and 7.1), not a rebuild.**
+  - Under the hood (verified): Google Autosuggest (`suggestqueries.google.com`, `hl=sv&gl=se`, alphabet + question-prefix expansion), competitor Shopify sitemaps, and GSC `traffic_daily` for real positions; SV/EN intent classification, theme clustering, Jaccard dedupe. `bin/nightly-topic.py` (GSC-based topic finder, classifies one-push-away / content-gap / decay-rescue) feeds the organic pipeline from the same family of signal.
+
+### 3.14 General agent tooling available to the autonomous loop (verified present on the box)
+
+These are not ads tools, but they are what a reasoning/generative layer can actually call. Every "the system researches competitors / writes copy / checks a landing page" step must be built from this list, and nothing else.
+
+**Research, scraping and SERP**
+- `research-unified` (invoked as `research`) — unified CLI over Tavily → Exa → Apify → Composio → Context7 → Brave → Browser Use, with MemPalace caching: `search`, `deep`, `extract <url>`, `docs`, `similar <url>`, `news`, `scholar`, `social`, `scrape <url>`, `browse <goal>`, `status`, `cache <query>`. Also on PATH: `tvly`, `tavily-pp`.
+- Keys held: `TAVILY_API_KEY`, `EXA_API_KEY`, `APIFY_API_KEY`/`APIFY_TOKEN`, `FIRECRAWL_API_KEY`, `BROWSERBASE_API_KEY`+`PROJECT_ID`, `SERPER_API_KEY` (real SERP results → rank tracking), `OCTEN_API_KEY` (semantic index — **not** a SERP), in `/root/.env.unified` and `/root/.secrets.env`.
+  - Caveat: `TAVILY_API_KEY` is present in `/root/.env.unified`, yet the Nordisk competitor path has previously failed for a *missing* key (Section 4.9). Verify the key resolves in the pipeline's own environment before depending on it.
+- **Local browser is the reliable fallback**: `chromium-browser` / `google-chrome`, headless CDP profile dir at `/root/.chrome-cdp`, Playwright, `camofox`. Composio is dead (Section 4.3) and Browser Use Cloud is a paid external — do not put either on a critical path.
+- **20 Nordisk-specific `nr*` helpers on PATH** for landing-page and creative QA: `nrshot.js`, `nrdiff`, `nrdifft`, `nrvisdiff`, `nrcmp`, `nralign`, `nrmobile.js`, `nrstruct.js`, `nrtext.js`, `nrtop.js`, `nrwhere.js`, `nrverify`, `nrscout`, `nrextract.js`, `nrtheme`, `nrsecoffsets.js`, `nrbuild`, `nrcontent`, `nrperf` (PageSpeed/Lighthouse). `nrvision` (Gemini flash) returns style-fit judgement + Swedish alt text — **use it for automated screenshot judgement of landers and ad creative.**
+
+**LLM access and orchestration**
+- `OPENROUTER_API_KEY`, `ORCAROUTER_API_KEY` (self-hosted gateway at `/mnt/HC_Volume_105587324/orcarouter-lite/`), `OPENAI_API_KEY`, `GOOGLE_AI_STUDIO_API_KEY`. Model routing for the reasoning/generative layers goes through these; there is no budget for fine-tuning and no GPU.
+- Hermes agent primitives: subagents, worktree isolation, cron jobs, MCP toolsets, `session_search` — plus the eval/MOE pattern (`judge-reasoning.py`, `judge-reliability.py`, 3-reviewer pre-publish gate) in `/root/loops/nordisk-comparison-pipeline/`.
+- **`pi-moa` is NOT on `PATH`** (a Revision-1 note assumed it was). Fan-out to multiple reference models must be built from the OpenRouter/Orcarouter keys directly.
+
+**Memory, knowledge and self-improvement substrate**
+- MemPalace MCP at `127.0.0.1:8797/mcp` (palace at `/root/.mempalace/palace`; **the older `/root/palace/` is stale legacy — don't read it**) — KG, Chroma semantic search, agent diary. GBrain (`gbrain search`, ~92 pages / ~1,751 chunks). Session history via `session_search`.
+- `/root/loops/` contains `nordisk-comparison-pipeline` (full autonomous article pipeline: discovery → demand → research → enrichment → ground → draft → eval → moe → humanizer → swedish_polish → verify → publish), `nordisk-content-graph`, plus `disk-health-watchdog.md`. `/root/harness-opt/` holds the read-only noticing comb, the gated credential-heal actor and its eval-suite gate. A SkillOpt L1–L7 pipeline scores and evolves skills.
+- **`nodes/nordisk_self.py` in the comparison pipeline is the canonical-facts pattern to copy**: Nordisk's own product facts load from a `product_facts` table so no script can hardcode a wrong spec. The ads system needs the same for products, prices, ICP and claims.
+
+**Runtime and limits**
+- ~20 active cron entries; SQLite everywhere (`nordisk.db`, `ads_decisions.db`, `keyword-intel.db`, `pixel_track.db`, `nordisk-research.db`, comparison-pipeline `competitors.db`). Temporal skills are installed and a Postgres is *declared* at `localhost:5433` (`DB_USER=temporal`, `DB_NAME=company_os`) — **but nothing is listening on 5433 right now**; treat durable workflow infra as a build decision, not an existing capability.
+- Disk headroom (verified 2026-09-23): `/` **38G, 82% used, 6.8G free — the tight one**; `/mnt/HC_Volume_105587324` 40G / 71%; `/mnt/HC_Volume_105573741` 30G / 62%. Keep temp files, screenshots and browser profiles off `/` (headless-Chrome profile dirs in `/tmp` are a recurring disk eater).
+- Notifications: Telegram gateway is configured (Section 6 requires a channel he actually reads); `bin/weekly-email.py` exists for email digests. Note DKIM is currently missing for `vektal.systems` (Section 4.15).
+
+### 3.15 What does NOT exist (do not design around it)
+
+- No Meta/Facebook/Instagram, Microsoft/Bing, TikTok or LinkedIn ad API access. YouTube is reachable only through Google Ads, with no dedicated tooling.
+- No call tracking, no CRM, no CDP, no attribution product. **No wired server-side GCLID → CRM → offline-conversion loop** — the API surface (`offline_user_data_jobs`) exists; the wiring does not. This is the biggest missing piece for high-quality conversion signals on a store with few purchases.
+- No data warehouse beyond SQLite; no cloud autoscaling; one host, one box, no GPU.
+- No ads dashboard UI. (A Go `dashboard/` dir exists; assume it must be built, and per Section 9 don't make a dashboard the deliverable anyway.)
 
 ---
 
@@ -220,6 +276,10 @@ Do not design around these as if they work. Each is either a blocker or a requir
 10. **No write path exists anywhere.** The entire ads toolchain today is monitoring and reporting. Zero mutations have ever been automated.
 11. **Shopify line items are not ingested** — no product-level order attribution.
 12. **Merchant Center performance is not ingested** — no Shopping/PMax surface visibility.
+13. **The Google Ads OAuth refresh path flaps.** The 2026-09-23 05:07 doctor recorded `TOKEN_REFRESH_FAILED` while a manual `gads-auth.py check` hours later returned `live API OK` with `token_expiry` ~1 hour out. So the access token lives ~1h, the refresh intermittently fails, and **every consumer must assume auth can die between runs** — detect, alert, degrade to observe-only, never report zeros.
+14. **Nothing currently proves the tracking chain end-to-end.** The tracker accepts and forwards purchases (9 × `204`), but the doctor's GA4 read/realtime probe still returns `purchases(30m)=0`, and Google Ads reports conversion value with a zero conversion count. **Tracker → GA4 → Google Ads is unverified as a chain.** This is the verification job Section 10.6 asks for, and it is currently absent.
+15. **DKIM is missing for `vektal.systems`** (SPF/MX pass). The system's reporting channel is email/digest-shaped — a digest that lands in spam is functionally the same as no digest.
+16. **Google Ads conversion import lag is 24–48h** and must be modelled: any optimisation loop that reads "yesterday's conversions" is reading an incomplete, still-settling number. Design explicit data-settling windows rather than trusting the freshest row.
 
 ---
 
@@ -351,7 +411,7 @@ The owner explicitly said he doesn't know what he's missing. This section is the
 - **Geo strategy** — Sweden is the market, but water hardness varies meaningfully by region, which is both a targeting opportunity and a creative-localisation opportunity. Also: account currency AUD / timezone Sydney vs SEK / Sweden — decide and document the canonical reporting timezone.
 - **Device and time-of-day strategy.**
 - **Exclusion and placement hygiene.** Placement exclusions, brand-safety, mobile-app exclusion on Display/Discovery.
-- **Consent / privacy / tracking durability.** EU market, GDPR. Cookie consent affects GA4 and conversion modelling. Design must not assume clean client-side tracking forever; consider server-side or enhanced conversions. Check that tracking is consent-compliant — a system that optimises on GDPR-noncompliant data is a liability.
+- **Consent / privacy / tracking durability.** EU market, GDPR. Cookie consent affects GA4 and conversion modelling. Design must not assume clean client-side tracking forever; consider server-side or enhanced conversions. **A first-party server-side purchase feed already exists and is running (Section 3.12) — extend it, and treat it as the durable attribution spine rather than building a parallel one.** Check that tracking is consent-compliant — a system that optimises on GDPR-noncompliant data is a liability.
 - **Claim and policy compliance.** Swedish consumer marketing rules and Google Ads policy around health/hygiene claims. The product makes implicit health claims (skin, hair, heavy metals). Any autonomous copy generation needs a policy and claims gate before publication — this is a hard requirement, not a nice-to-have, given automated copy generation.
 - **Swedish language quality gate.** Machine-generated Swedish that reads translated will damage a brand whose differentiation is local trust. The existing content pipeline already has a Swedish-polish review stage — reuse it for ad copy.
 - **Cost of operation.** API quotas (Google Ads has per-account operation limits), rate limits, and the fact that polling everything daily on one box has a real token/time cost. Design a tiered refresh cadence (hot: daily, warm: 3-day, cold: weekly) rather than refreshing everything constantly.
@@ -384,7 +444,7 @@ Produce a **technical architecture and implementation specification** — the do
 3. **System architecture** — components, their responsibilities, and the data flow between them. Include the closed loop explicitly: sense → validate → interpret → decide → act → verify → learn.
 4. **Data model** — full SQLite DDL: every table, column, type, index, and its purpose. Include the entity model from Section 8 (campaigns, ad groups, ads, keywords, negatives, landers, intents, personas, products, products↔keywords, decisions, outcomes, experiments, memory-of-failure, run-ledger). Include provenance columns (source, harvested_at, attribution_window, currency) on every fact table.
 5. **Ingestion layer** — per data source: what to pull, at what granularity, on what cadence, via which CLI/API call, into which table, with what freshness and completeness assertions, and what to do on failure. Cover the gaps named in Section 4 (ad-group/ad/keyword/geo/device granularity, Shopify line items, GMC performance, search terms, auction insights, asset performance).
-6. **Attribution and measurement integrity** — how Google Ads (AUD), GA4 (conversion value), Shopify (SEK), and Klaviyo (lagged/assisted) are reconciled; which source is authoritative for which question; the canonical timezone and currency handling; the conversion-action hygiene fix; the UTM standard; how discrepancies are detected and surfaced. Include the end-to-end verification job that proves a click in Ads becomes an order in Shopify and is visible in both.
+6. **Attribution and measurement integrity** — how Google Ads (AUD), GA4 (conversion value), Shopify (SEK), and Klaviyo (lagged/assisted) are reconciled; which source is authoritative for which question; the canonical timezone and currency handling; the conversion-action hygiene fix; the UTM standard; how discrepancies are detected and surfaced. Include the end-to-end verification job that proves a click in Ads becomes an order in Shopify and is visible in both — **anchored on the existing first-party tracker (Section 3.12), which is the only component in the chain that can testify to a purchase without depending on the browser**.
 7. **The decision engine** — for each decision class (budget reallocation, bid adjustment, keyword pause/enable, negative addition, creative rotation, ad group creation, ad creation, keyword creation, campaign launch, geo/device adjustment): the inputs, the deterministic rule/policy, the thresholds with their justification, the minimum-data guard, the confidence/credible-interval logic, the action bounds, the rollback plan, and the escalation condition. For every **creation** decision (new ad group / ad / keyword / campaign) additionally specify the hypothesis record, the launch envelope parameters (N and M), the leading-indicator floor that keeps it alive, and the auto-kill rule. Be explicit about the do-nothing branch.
 8. **Scaling and exploration** — how winners grow, how new ideas enter the portfolio, the exploration budget, the launch envelope applied to every new entity, the full lifecycle of a campaign from incubation through promotion to scaling or retirement, and the guardrails on each transition.
 9. **Creative and copy generation** — the pipeline from intent/persona/pain-point → keywords → ad concepts → headlines/descriptions → lander selection, including the LLM stages, the validation gates (Google policy, Swedish language quality, claims compliance, brand voice), and the review/MOE gate before publication. Specify how this pipeline runs fully autonomously — the copy must reach live status without a human in the loop, with the gates as automated filters, not approval steps.
