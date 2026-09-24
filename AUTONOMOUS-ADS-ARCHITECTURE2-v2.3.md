@@ -1,6 +1,6 @@
 # AUTONOMOUS-ADS-ARCHITECTURE.md
 
-Spec for OWL (Builder). Responds to `HANDOFF-PROMPT-claude-opus5-rev3.md`. Version 2.4, 2026-09-24 — **generative layer**: Phase 1c (UNIT 1.19–1.23), a tiered persuasion/evidence corpus (§12.1, §GL.2), a research brief generator (§GL.3), a lander **archetype** layer with declared claim surfaces (§12.6, §13.1, §GL.4), a rewritten imagery clause complying with EU AI Act Art. 50 **in force since 2 Aug 2026** (§12.5), and measurable display unlock conditions (§22.3). Amended by companion `AUTONOMOUS-ADS-GENERATIVE-LAYER.md` v1.0; see §24. v2.3, 2026-09-23 — measured baseline (9 orders/month) and the 10× path (§1.6), Builder-run growth levers ahead of the autonomy ladder (Phase 1b), Phase 1 go/no-go, funding gates, cost of ownership, email broadcasts never autonomous; v2.2: full-funnel cascade autonomous (§12.11), 100-idea bank ranked by proven evidence (§12.12), Klaviyo clone-and-vary (§12.13), runtime independent of the agent harness (§17.9); v2.1: margin-derived spend governor, day-one import of existing Google Ads knowledge (§16.10), winner loop and funnel cascade (§12.11); v2.0: total-store growth target under a revenue-linked spend governor (§3.5, §3.7), proven-demand sourcing (§10.0), conquest layer: category scoreboard, answer engines, lander factory (§10.5–10.7), creative feedback loop and pattern library (§12.8–12.10), localized market entry (§14.7). Section 21 is the executable plan; everything else is its contract.
+Spec for OWL (Builder). Responds to `HANDOFF-PROMPT-claude-opus5-rev3.md`. Version 2.3, 2026-09-23 — measured baseline (9 orders/month) and the 10× path (§1.6), Builder-run growth levers ahead of the autonomy ladder (Phase 1b), Phase 1 go/no-go, funding gates, cost of ownership, email broadcasts never autonomous; v2.2: full-funnel cascade autonomous (§12.11), 100-idea bank ranked by proven evidence (§12.12), Klaviyo clone-and-vary (§12.13), runtime independent of the agent harness (§17.9); v2.1: margin-derived spend governor, day-one import of existing Google Ads knowledge (§16.10), winner loop and funnel cascade (§12.11); v2.0: total-store growth target under a revenue-linked spend governor (§3.5, §3.7), proven-demand sourcing (§10.0), conquest layer: category scoreboard, answer engines, lander factory (§10.5–10.7), creative feedback loop and pattern library (§12.8–12.10), localized market entry (§14.7). Section 21 is the executable plan; everything else is its contract.
 
 ---
 
@@ -1637,18 +1637,6 @@ Pipeline `ROOT/adsys/creative/`, reusing `/root/loops/nordisk-comparison-pipelin
 
 Ad-group tuple (awareness, journey, pain, product, lander), top keywords, `product_facts` + `product_claims`, VOC phrases from `tax_icp_segment` (ads and landers only — never Shopify product descriptions), `ad-copy-library.md` parsed into `ent_creative` (lifecycle `DRAFT`, origin library), `ad_audit_archetype_weights` as angle priors, fail memory for creatives, asset performance labels.
 
-**v2.4 additions:**
-
-- **A research brief** (`research_briefs`, UNIT 1.20) where one exists for the angle — topic research, audience beliefs, awareness hypothesis **with a mandatory stated basis**, competitor observations, and `gaps` (mandatory non-empty). This is what lets an angle arrive *researched* rather than asserted; without it, every input above is internal, and no input can answer *"what does this audience already believe?"* — the question that determines awareness stage, and therefore angle and format.
-- **Corpus principles** (`corpus_principles`, UNIT 1.19) — a tiered, citable knowledge base. Selection returns `[{principle_id, tier, boundary_conditions, forbidden_renditions}]`.
-
-Two rules bind these inputs:
-
-1. **`claim_candidates` from a brief MUST resolve in `product_claims`.** Research may propose; only the claims gate (§12.4) admits. A brief proposing an off-spec claim is a gate failure, not a near miss.
-2. **A tier-T4 persuasion mechanism is blocked in generated output**, not merely filtered from retrieval — enforced as a lint on the *text*, because LLMs restate folk mechanisms as science. See §12.4 and the blocklist in the companion doc §GL.2.2.
-
-Neither input may override §12.4. The claims gate always wins over persuasion input.
-
 ### 12.2 Stages
 
 | # | Stage | Type | Output |
@@ -1676,50 +1664,13 @@ Stored as `ROOT/adsys/config/brand_voice.md` (derived from existing ad-copy libr
 - No fabricated quotes or reviews: quotation marks with attributions → hard fail.
 - Conflict #1 position (§15 of brief): because outcome claims are restricted to an enumerated whitelist and everything else fails closed, the gate is reliable enough to run unattended. The measurable condition that would force copy back behind a human: > 1 disapproval per 20 live ads in a rolling 90 days, or any post-publication claim violation found by the weekly audit (T-CLAIM, §15.3). Either → demotion to Stage 1 for creative classes and incident sev 2.
 
-**v2.4 extensions to the gate (all deterministic, all fail-closed):**
-
-- **T4 mechanism lint (output, not retrieval).** Any generated line or rationale naming a blocked persuasion mechanism fails. The blocklist is a knowledge-base asset with a documented failure citation per entry; a wrongly-blocked mechanism is a corpus bug, so entries are reviewable. Corpus entries whose primary source is unverified load at tier **T3 regardless of claimed tier** — the schema is safe by construction, and verification only ever promotes.
-- **Archetype claim-surface enforcement.** A page or ad whose `lander_class` carries a claim class outside its declared `allowed_claim_classes` fails. Claim surfaces live in `taxonomy.toml` per archetype (companion doc §GL.4.5). An archetype that cannot enumerate its claim surface is **not eligible for autonomous generation** (companion doc GL-R1).
-- **Structural completeness.** Each archetype declares `required_sections`; a generated page omitting one fails. The commercial disciplines this encodes — a visible guarantee and a persistent CTA — are structural requirements, not optional decoration.
-- **Scarcity/urgency truthfulness.** Scarcity or urgency language is admissible only when the constraint is literally true (real stock, real deadline). Fabricated countdowns, fabricated stock counters and false urgency are separately regulated as unfair commercial practices and are banned outright, independent of tier or evidence.
-- **Fear-appeal pairing.** An angle built on fear/threat must carry a paired efficacy statement in the same unit. Fear appeals without efficacy content risk defensive avoidance and backfire, and are rejected at the gate rather than optimised into.
-- **AI imagery disclosure.** Copy or layout that accompanies a Representational synthetic image must carry the §12.5 disclosure. The gate checks presence, not phrasing.
-
 ### 12.5 Images
 
-**v2.4 — this section is REWRITTEN. The v2.3 blanket ban on generated imagery is replaced by a classification + disclosure regime, because the regulatory position is now settled enough to write down, and because the ban was over-broad in a way that removed capability without removing risk.**
-
-Product images from Shopify (via `products_rich.json`), judged by `nrvision` for style fit; used for image assets on Stage 3+ surfaces. **Generated imagery is permitted only under the rules below.**
-
-**Status (verified 2026-09-24):** EU AI Act **Article 50 transparency obligations apply from 2 August 2026** — no longer prospective. The Digital Omnibus deferred **Annex III high-risk** obligations (to 2 Dec 2027 / 2 Aug 2028); reports indicate it did **not** move Article 50 for deployers, though one source raises an open question about Art. 50(2) *marking* for systems that are both interactive and generative (see companion doc Appendix A, item V13). The Commission's final Guidelines were published **20 July 2026**, alongside a Code of Practice on Transparency of AI-Generated Content and three optional EU icons. Content generated before 2 Aug 2026 need not be labelled retroactively.
-
-**Scope, per the Guidelines:** the duty lands on the **deployer** (the brand). A **realistic synthetic depiction of a person who does not exist is a deepfake** — such a person plausibly could exist, so "we invented the face" is not an exemption. Clearly fantastical or physically impossible content falls **outside** the definition. But the Guidelines state the rules are **not confined to deceptive content**, and that **ordinary commercial uses of generative AI may fall within scope**; marketing using synthetic depictions of realistic people, places or events is expressly in scope. Disclosure must occur **at first exposure**, clear and distinguishable, perceivable without technical tools — it cannot be buried in file metadata — and for **display advertising a label on the creative unit is the expected approach**. Deployers cannot rely on the provider's machine-readable marking alone.
-
-**AI-1 — Classification.** Every generated image is classified before use: **(a) Representational** — depicts the product, its packaging or components, an effect/result, a person, or an identifiable real place or event; **(b) Atmospheric** — a stylised/conceptual scene depicting no product, no person, no identifiable real place.
-
-**AI-2 — Forbidden regardless of classification.** (i) any depiction of the product other than a faithful representation of the shipped SKU; (ii) before/after, result or performance depictions; (iii) depictions of customers, reviewers, experts, employees or endorsers; (iv) anything implying testing, certification, laboratory results, awards or independent verification; (v) any image adding, removing or altering a product feature — filtration media, number of stages, finish, fittings, dimensions; (vi) fabricated reviews or quotes, or their visual equivalent. **(i) and (v) restate v2.3's original and correct reasoning** — generated imagery must not depict unverified product features.
-
-**AI-3 — Disclosure.** Any Representational image, and any photorealistic synthetic image that would appear authentic, MUST carry a clear disclosure adjacent to the image **at first exposure**, perceivable without interaction, **in the language of the surface it appears on** (Swedish on sv-SE surfaces, e.g. *"Bilden är AI-genererad."*; the disclosure must be understandable to the audience perceiving it, so EN/FR landers and localised markets per §14.7 require the equivalent in their own language). The EU icon MAY be used alongside. Stylised Atmospheric imagery requires no disclosure **provided** no accompanying copy implies the scene documents a real customer's home, a real installation, or a product result.
-
-**AI-4 — Provenance.** Provenance metadata (watermark / model metadata) MUST NOT be stripped. If a platform rejects an asset because of provenance metadata, escalate — do not remove it.
-
-**AI-5 — Register.** Per-asset record: asset ID, tool + model, date, prompt/reference, classification, disclosure applied, reviewer, every URL used on.
-
-**AI-6 — Stylisation default.** Absent an explicit owner decision otherwise, generated imagery is **stylised, not photorealistic**. Photorealistic generation requires the AI-1 classification and AI-3 disclosure decision to be recorded **before** use.
-
-**AI-7 — Continuous re-verification.** Re-validate on any amendment to the Guidelines or Code of Practice, any new icon guidance, or any change to Google/Meta policy on AI creative. The 2 Aug 2026 trigger has passed; the obligation is now continuous, not a future milestone.
-
-**Why the default is stylised — two arguments converge.** *Compliance:* the operative test in Art. 3(60) is content that "would falsely appear authentic or truthful". A clearly stylised, illustrative or graphic visual does not satisfy that prong, so it sits outside the deepfake definition — and the Guidelines' separate, narrower carve-out for "clearly fantastical or physically impossible" content (their examples: dragons, unaided human flight) is a *further* safe harbour rather than the basis for the general case. *Performance:* a stylised visual disrupts a photorealistic feed more reliably than another photograph of water, which is the "scroll-stopper / pattern-disruption" requirement stated for display creative. The compliant choice and the effective choice are the same choice here.
-
-**Feasibility (measured on box, not assumed):** `openai` SDK installed and `OPENAI_API_KEY` present → generation is available today. `GEMINI_API_KEY`/`GOOGLE_API_KEY` are **absent**, so the `gemini-imagegen` path the `nrvision` work assumed **cannot run** until a key is provisioned. Provider choice is an open owner decision (§23 Q13).
-
-**Companion detail:** `AUTONOMOUS-ADS-GENERATIVE-LAYER.md` §GL.5 carries the full clause, the source register and the acceptance tests.
+Product images from Shopify (via `products_rich.json`), judged by `nrvision` for style fit; used only for image assets on Stage 3+ surfaces. No generated product images (they would depict unverified product features).
 
 ### 12.6 Landers
 
-- **Autonomous path (Stage ≥ 2): Shopify Pages.** `POST /admin/api/{ver}/pages.json` with `published:false`, `template_suffix` of an existing lander template (no theme write), body from R8 constrained to facts/claims, internal links to the matching article. **v2.4: the system selects an *archetype*, not merely a page — see §13.2.1.**
-- **Archetype claim surface (v2.4).** The chosen `lander_class` must declare the claim classes the page carries (companion doc §GL.4.5), and `required_sections` must be present. An archetype that cannot enumerate its claim surface is not eligible for autonomous generation (companion doc GL-R1).
-- **New surfaces start at Stage 0 (v2.4).** Archetypes, imagery classes and display classes enter at shadow stage regardless of the account's current stage. An account-wide stage must not silently grant a brand-new surface the autonomy earned by a different surface (companion doc GL-R2). Gates: §12.4 on every sentence, MOE (G5), `nrshot` desktop+mobile, `nrvision` style-fit ≥ config threshold, `nrperf` mobile score not worse than the median of existing landers minus 10. Then `published:true`, lander checks (§11.6), then eligible for routing. Rollback: unpublish.
+- **Autonomous path (Stage ≥ 2): Shopify Pages.** `POST /admin/api/{ver}/pages.json` with `published:false`, `template_suffix` of an existing lander template (no theme write), body from R8 constrained to facts/claims, internal links to the matching article. Gates: §12.4 on every sentence, MOE (G5), `nrshot` desktop+mobile, `nrvision` style-fit ≥ config threshold, `nrperf` mobile score not worse than the median of existing landers minus 10. Then `published:true`, lander checks (§11.6), then eligible for routing. Rollback: unpublish.
 - **Theme path (blocking at the last step).** Anything needing a theme section or template change: adsys writes a change spec; `theme_guard.py` flow runs unattended up to and including duplicate theme, preview-URL browser test, 17 tests, Lighthouse on the duplicate; the publish-to-live step creates Gate `THEME_PUBLISH` with preview link, test results and perf delta. Duplicate creation failure → stop and escalate (never edit live). Condition for automating the final step (conflict #2): 20 consecutive gated publishes with zero rollbacks, a visual-diff test on 5 key pages (`nrvisdiff` under threshold) and no perf regression > 5 points — then the owner may reclassify the gate (only he can).
 - GemPages pages are routable but never created or edited by adsys (no API in inventory).
 - Article featured images stay manual-only; adsys never writes an `image` key.
@@ -1782,11 +1733,11 @@ A challenger becomes champion when `P(challenger > champion) ≥ 0.8` on the dec
 
 1. **Budget:** D19 +30%/7 d on the entities carrying it, inside the governor.
 2. **Spread:** new ad groups for adjacent PROVEN queries using the champion angle.
-3. **Landing page:** rebuild the lander's first screen and copy around the angle (Shopify Page variant, 50/50 experiment). **v2.4: the rebuild selects an archetype** from §13.1's `lander_class` per the awareness stage of the winning angle — an authority-winning theme does not cascade into a listicle template. Archetype selection is recorded in `variants.changed_element` so the archetype itself becomes a testable variable.
+3. **Landing page:** rebuild the lander's first screen and copy around the angle (Shopify Page variant, 50/50 experiment).
 4. **Shopping:** feed titles in the champion's phrasing.
 5. **Offer:** bundle, upsell or downsell built around the angle (e.g. filter + cartridge bundle when the "long-term savings" theme wins).
 6. **Email:** Klaviyo welcome / abandoned-cart message variant carrying the angle.
-7. **Organic and answer engines:** brief to the article pipeline. **v2.4: the brief is generated by UNIT 1.20 (research brief generator)** where one exists, so the article inherits the same research, awareness hypothesis and principle selection as the winning angle rather than re-deriving them.
+7. **Organic and answer engines:** brief to the article pipeline.
 8. **Markets:** localized version for the next market (§14.7).
 
 **Authority per cascade step — all eight run on their own; Maestro holds veto and can alter anything after the fact:**
@@ -1863,7 +1814,7 @@ The weekly digest shows the top 10 of the bank and what moved in or out.
 | pain_point | DRY_SKIN, ITCHY_SKIN, HARD_WATER, CHLORINE, HEAVY_METALS, HAIR_DAMAGE, ALLERGY, NONE |
 | role | BRAND, NONBRAND, CONQUEST, SHOPPING, PMAX, DEMAND_GEN, VIDEO, HARVEST |
 | lang | sv, en, fr |
-| lander_class | PRODUCT, COMPARISON, PROBLEM, GUIDE, GEMPAGES, HOME, ARTICLE, COLLECTION, **LISTICLE, AUTHORITY, REPORT, ADVERTORIAL** (v2.4) |
+| lander_class | PRODUCT, COMPARISON, PROBLEM, GUIDE, GEMPAGES, HOME, ARTICLE, COLLECTION |
 | content class | EDUCATIONAL (TOF), INFORMATIONAL/COMPARISON (MOF), PURCHASE (BOF), RETENTION |
 
 ### 13.2 Stage → format, lander, CTA, metric
@@ -1875,36 +1826,6 @@ The weekly digest shows the top 10 of the bank and what moved in or out.
 | COMPARISON (journey) | "duschfilter bäst i test", "jämför duschfilter" | differentiation vs competitor weaknesses (no trademarks) | COMPARISON `/pages/duschfilter-jamforelse-bast-i-test` | "Jämför" | as SOLUTION |
 | PRODUCT_AWARE | "nordisk duschvattenfilter pris" | price, guarantee, shipping | PRODUCT | "Köp" | CM_ROAS 14 d |
 | MOST_AWARE | brand, "ersättningspatron" | brand, reorder | PRODUCT / cartridge | "Beställ" | capture ratio, CM |
-
-### 13.2.1 Archetype ↔ stage fit (v2.4)
-
-The v2.3 table above routes by lander *topic*. This routes by lander **shape**, which is a separate and independently testable variable — two pages on the same topic in different archetypes are different creative units, and the winner loop must be able to say *which shape* won.
-
-**How an archetype is implemented — two mechanisms, and the distinction is load-bearing.**
-
-| | **A. Content-driven (the generator)** | **B. Section-driven (hand-built designs)** |
-|---|---|---|
-| Mechanism | `POST /admin/api/{ver}/pages.json` with `body_html`; the template renders `{{ closest.page.content }}` | `template_suffix` selects a JSON template whose sections carry **literal copy** |
-| Theme write? | **No** — this is why §12.6 says "no theme write" | **Yes, one push per variant** — the section copy is hardcoded in the template |
-| Variety | **Unbounded** — the archetype is the HTML structure adsys writes | **Fixed** — instantiating the same template twice yields a byte-identical clone |
-| Available | **Today.** Verified live themes: `page.json` (default), `page.contact.json`, `page.water-report.json`, `page.science.json` all render `{{ closest.page.content }}` (as a `text` block setting, or via `blocks/page-content.liquid`) | `page.nr-4-reasons`, `page.nr-8-reasons` exist in the repo **but are not published** |
-| Cost model | zero marginal theme cost per page | one owner-gated theme push **per variant** |
-
-**The generator uses mechanism A.** An archetype is therefore defined as *a content template* — the HTML skeleton, section order, claim surface and required elements that adsys writes into `body_html` — **not** a Shopify theme template. Section-driven pages (mechanism B) are hand-built proven designs, valuable as a reference for what a good archetype looks like, but they are **not** the generation substrate: varying them per page would require a theme push per page, which is exactly the cost the autonomous path exists to avoid.
-
-| `lander_class` | Generated as (mechanism A) | Claim surface | Awareness fit | Templates it can render through |
-|---|---|---|---|---|
-| `LISTICLE` | content template, N-reason skeleton | PROOF, SPEC, GUARANTEE, BENEFIT, ECONOMIC_SAVING *(sourced only — see companion §GL.4.5)* | SOLUTION_AWARE, PRODUCT_AWARE | `page.water-report` (clean shell), `page.json` |
-| `ADVERTORIAL` | content template, narrative → mechanism → offer | PROBLEM_STATEMENT, SPEC, GUARANTEE | PROBLEM_AWARE, SOLUTION_AWARE | `page.water-report`, `page.json` |
-| `AUTHORITY` | content template, proof-first | PROOF, SPEC only; study blocks must cite a real source or be omitted; **no fabricated quotes** | SOLUTION_AWARE, COMPARISON | `page.science` (designed), `page.water-report` |
-| `REPORT` | content template, data-first | PROOF, SPEC, data claims with a named source | PROBLEM_AWARE, SOLUTION_AWARE | `page.water-report` |
-
-**Two clarifications that v2.3/v2.4-draft got wrong and this corrects:**
-
-1. **`AUTHORITY` and `REPORT` are not "built archetypes".** The existing `page.science.json` and `page.water-report.json` are **GemPages-derived** (their section types are GemPages classes, not native `nr-*`), and §12.6 is explicit that **GemPages pages are routable but never created or edited by adsys**. What they provide is a *template that renders page content*; what they do not provide is a generatable GemPages design. Treat them as rendering shells and design references, not as inherited artefacts.
-2. **The `nr-*` library is a design asset, not a generator.** It is a genuinely good asset — twelve native section components and two fully-designed listicle pages — but its copy is hardcoded. Its value to this system is as (a) the reference implementation each content template should imitate, and (b) a candidate for a later refactor to be metafield/setting-driven, **after which** it would become a generator substrate. Until that refactor exists, publishing it does **not** make page generation autonomous. That refactor is not in this spec and should not be assumed.
-
-**Gate before autonomous generation (v2.4).** The theme repo's gap register marks two defects OPEN that bear directly on a system whose purpose is to drive purchases: **G18** (add-to-cart / form submission never tested end to end — the buy button renders but nothing proves a purchase completes) and **G17** (interactive components checked only statically — a FAQ that never opens passes every gate). Both must have executable checks, each demonstrated failing on a deliberately broken state, before this archetype layer generates autonomously. Per the register's own rule, a check that has never failed has not been tested. Additionally, a content-driven page must be verified to **actually render its body** on the chosen template before it is routed to — a template that silently drops `page.content` produces an empty page that passes every text-level gate.
 
 ### 13.3 Pain → keyword → ad → lander → product
 
@@ -2848,107 +2769,6 @@ Rollback:       unpublish bundle
 Est. effort:    S
 ```
 
-### Phase 1c — Generative Layer (v2.4)
-- **Goal:** widen what the system can *express* — grounded angles, named page archetypes, compliant imagery — without widening the guardrail surface. Full specification: `AUTONOMOUS-ADS-GENERATIVE-LAYER.md`.
-- **Exit:** corpus loads with every entry carrying tier + basis + provenance + measurement proxy; one research brief reproduces a human-assigned awareness stage with a stated basis; the `nr-*` archetype library is published and routable via §13.1; §12.5's AI-1…AI-7 guardrails are enforced with tests that have been demonstrated failing.
-- **Money:** none. One owner-gated theme publish.
-- **Effort:** ≈ 1.5 weeks (companion doc), excluding the gated publish and any advertorial template.
-
-```
-UNIT 1.19  Persuasion & evidence corpus
-Purpose:        A citable, tiered corpus so angle selection is grounded — and so folklore
-                cannot be laundered as evidence.
-Files:          ROOT/adsys/corpus/principles/*.yaml; ROOT/adsys/corpus/blocked_mechanisms.yaml;
-                ROOT/adsys/corpus/provenance.md
-Depends on:     —
-Interface:      corpus.query(stage, tier_max, channel) -> [{principle_id, tier, boundary_conditions}]
-Implementation: - T1–T4 evidence tiers; T3 requires a registered measurement proxy;
-                  T4 blocked as an OUTPUT lint (LLMs restate folk mechanisms as science)
-                - entries whose primary source is unverified load at T3 regardless of claimed
-                  tier — verification only ever promotes
-                - provenance points at PRIMARY texts, never secondary explainers (the documented
-                  vector for transcription errors)
-                - 30–60 entries, not 300; each needs a predicted effect
-Test:           adsys/tests/corpus_tests.py (missing tier/basis/proxy/blocked-in-principles fail)
-Acceptance:     query returns tier-filtered principles for every (awareness, journey) pair;
-                injecting a T4 mechanism fails the lint
-Rollback:       revert directory (knowledge base)
-Est. effort:    M
-```
-```
-UNIT 1.20  Research brief generator
-Purpose:        Turn "angle X might work" into a researched, structured brief.
-Files:          ROOT/adsys/research/{brief,brief_schema}.py
-Depends on:     1.19
-Interface:      in: {angle_id|pain_point|query_cluster, market, product}; out: brief.json
-Implementation: - claim_candidates MUST resolve in product_claims (research proposes, the gate admits)
-                - awareness_basis mandatory; a stage assigned without a basis silently routes format
-                - gaps mandatory and non-empty (same discipline as §0.2 / §20.6)
-                - sources typed primary|secondary; secondary-only briefs cap at confidence low
-                - competitor findings inform differentiation, never enter copy as trademarks
-Test:           adsys/tests/brief_tests.py (off-spec claim fails; empty basis fails)
-Acceptance:     brief on a known topic reproduces the human-assigned stage with a stated basis
-Rollback:       briefs are artifacts; delete or supersede
-Est. effort:    M
-```
-```
-UNIT 1.21  Archetype layer & claim surfaces
-Purpose:        Name and route the page archetypes; publish the finished nr-* library.
-Files:          ROOT/adsys/config/taxonomy.toml (archetype blocks); ROOT/adsys/lander/archetype.py
-Depends on:     1.15 (article work), gated theme publish (§R3), theme-repo G17+G18 checks
-Interface:      archetype.select(awareness, journey, product) -> {lander_class, template_suffix}
-Implementation: - declare allowed/forbidden claim classes, required_sections, awareness_fit per
-                  archetype (claim surface declared BEFORE generation — GL-R1)
-                - new archetypes enter at Stage 0 (GL-R2)
-                - publish nr-* library via the owner-gated theme path; verify with `nrtheme status`
-                  reporting zero repo-only files
-                - ADVERTORIAL is a genuine gap: build as follow-on under the same gate
-Test:           archetype_tests.py (forbidden claim class fails; missing required_section fails)
-Acceptance:     §11.6 lander checks pass per archetype; G17/G18 checks demonstrated failing first
-Rollback:       unpublish page; template rollback via theme-guard snapshot/verify (§R3)
-Est. effort:    M (archetypes) / S (publish) / M (advertorial, optional)
-```
-```
-UNIT 1.22  Imagery module + Art. 50 compliance
-Purpose:        Make generated concept imagery usable without creating regulatory exposure.
-Files:          ROOT/adsys/creative/imagery.py; ROOT/adsys/creative/disclosure.py
-Depends on:     — (guardrails); a provider key (generation half)
-Interface:      imagery.classify(asset) -> REPRESENTATIONAL|ATMOSPHERIC; imagery.gate(asset, surface)
-Implementation: - AI-1…AI-7 of §12.5: classification, forbidden classes, first-exposure disclosure,
-                  provenance non-stripping, per-asset register, stylised-by-default
-                - enforcement on the ASSET, so rollback and audit are per-asset
-                - stylisation default is both the compliant and the higher-performing option
-Test:           imagery_tests.py (undisclosed Representational fails; feature-altering fails;
-                result-implying fails; provenance survives pipeline byte-level)
-Acceptance:     register complete for every asset in use; both directions of each gate tested
-Rollback:       remove asset + register row; re-upload previous asset
-Est. effort:    S (guardrails) / M (generation, after key provisioned)
-```
-```
-UNIT 1.23  Display / demand-gen readiness
-Purpose:        Scope decision + explicit measurable unlock, replacing "before Stage 4".
-Files:          ROOT/adsys/config/scope.toml
-Depends on:     1.1 (tracking legs)
-Interface:      scope.display_eligible() -> bool + reason
-Implementation: - §22.3's economic reasoning is RETAINED — display is blocked by statistics, not
-                  capability or policy: at ~39 live clicks there is no way to tell a good display
-                  audience from a bad one
-                - unlock = (>= 30 orders/month for 2 consecutive months) AND (R1 >= 0.90 and
-                  R2 >= 0.85 for 30 days). The second condition is the important one: display
-                  prospecting is the most attribution-hostile surface in the account, and running
-                  it while the tracking legs are unproven means paying for conversions that
-                  cannot be seen
-                - `role` enum stays without DISPLAY so routing cannot address it by accident
-Test:           scope_tests.py (display ineligible at current order volume)
-Acceptance:     unlock condition evaluated from stored data, not asserted
-Rollback:       config value only
-Est. effort:    S
-```
-
-**Build order within Phase 1c:** UNIT 1.22 guardrails first (no dependencies; the law is already in force and the guardrail half has no external dependency) → UNIT 1.19 corpus (no dependencies; unblocks 1.20 and §12 generation) → the owner-gated `nr-*` publish (highest-leverage single action) → UNIT 1.21 archetypes (also requires G17/G18 checks) → UNIT 1.20 briefs → UNIT 1.22 generation half (needs a provider key). UNIT 1.23 builds nothing until its unlock condition is met.
-
-**Interaction with Phase 2:** the tables added by this phase (`corpus_principles`, `research_briefs`, `archetypes`, `image_assets`) are entity-model work and should be authored **with** UNIT 2.2, not after it. In particular `principle_id` as a taggable creative attribute (`creative_attributes`, §12.10) is a schema decision that is cheap now and a migration later — and it is what makes the corpus's tiers **testable in this account** rather than decorative.
-
 ### Phase 2 — Entity model and decision ledger
 - **Goal:** empty-but-correct control plane; every later write lands here. **Exit:** all §4.5 tables migrated; entities synced daily; landers verified; taxonomy tagged; executor runs in dry-run producing ledger rows; Telegram commands work. **Effort:** ≈ 2 weeks (parallel with Phase 1 proof window). **Money:** none.
 
@@ -3566,22 +3386,16 @@ The counterfactual lane (UNIT 3.3), calibration (3.2), selftests (1.9) and recon
 
 1. **No dashboard.** Telegram digest + `adsys report … --agent` JSON. A dashboard shows; this system decides.
 2. **No Smart Bidding on polluted or thin conversion data.** Maximize Clicks with contribution-derived ceilings until ≥ 30 clean conversions/30 d.
-3. **No UNAWARE targeting** (display/video prospecting to people without the problem) before the explicit unlock condition is met. **v2.4: the reasoning is retained and the condition is made measurable.** Display is blocked by *statistics*, not capability or policy — at ~39 live clicks there is no way to distinguish a good display audience from a bad one. Unlock = **≥ 30 store orders/month for 2 consecutive months** (store orders, not Ads conversions — §22 item 2's "30 clean conversions" is a different quantity and the two are deliberately not interchangeable) **AND tracking legs R1 ≥ 0.90 / R2 ≥ 0.85 green for 14 consecutive days** (aligned to Phase 1's own exit criterion, not a new window). The second condition is the load-bearing one: display prospecting is the most attribution-hostile surface in the account, and running it while the tracking legs are unproven means paying for conversions that cannot be seen (§1.5's "0.61 conversions cannot yet be read either way" is exactly that condition). **Honest note for the owner:** the cheapest-path analysis puts the realistic 6–12 month band at 20–30 orders/month, so a 30/month threshold sits at the optimistic ceiling of that range and may not be met inside a year. That is a property of the threshold, not a hidden deferral — if a faster display entry is wanted, the threshold is the thing to change. The `role` enum stays without a DISPLAY value until unlock, so routing cannot address it by accident.
+3. **No UNAWARE targeting** (display/video prospecting to people without the problem) before Stage 4 — no measurable path at this volume.
 4. **No Meta/Microsoft/TikTok/LinkedIn** — no access (§3.18).
 5. **No autonomous theme publishing, conversion-goal changes, cap raises, hard deletes, OAuth.**
-6. **No generated *product* imagery; generated concept imagery only per §12.5 as amended in v2.4.** (v2.3 banned all generated imagery. The reasoning in §12.5 was correct and survives as AI-2(i)/(v) — generated imagery must not depict unverified product features — but the scope was over-broad: it removed *concept* capability along with *product* risk. The bind was never the ban; it was that the compliant form had not been written. It is written now, and it is permissive for stylised work.) Also: **no fabricated reviews or quotes, or their visual equivalent; no medical-outcome claims; no competitor trademarks in copy.**
-
-7. **No tier-T4 persuasion mechanism in any generated output** (angle reasoning or copy) — enforced as an output lint, not merely a retrieval filter. Blocklist and citations in the companion doc §GL.2.2.
-
-8. **No undisclosed Representational synthetic imagery** (§12.5 AI-3), and no stripping of provenance metadata (AI-4).
-
-9. **No archetype generated autonomously whose claim surface is undeclared**, and no new surface inheriting an existing surface's stage (companion doc GL-R1, GL-R2).
-10. **No LLM-set thresholds, bids or budgets.**
-11. **No Google auto-apply recommendations.**
-12. **No re-research of the ICP.** Tagging only.
-13. **No Temporal/Postgres/Kafka/Airflow/vector-DB/Kubernetes.**
-14. **No surfacing of legacy paused campaigns** in any output.
-15. **No simulated confidence:** where the data cannot support a conclusion, the output says "not yet meaningful" with the date it will be.
+6. **No generated product imagery, fabricated reviews or quotes, medical-outcome claims, competitor trademarks in copy.**
+7. **No LLM-set thresholds, bids or budgets.**
+8. **No Google auto-apply recommendations.**
+9. **No re-research of the ICP.** Tagging only.
+10. **No Temporal/Postgres/Kafka/Airflow/vector-DB/Kubernetes.**
+11. **No surfacing of legacy paused campaigns** in any output.
+12. **No simulated confidence:** where the data cannot support a conclusion, the output says "not yet meaningful" with the date it will be.
 
 ---
 
@@ -3599,35 +3413,12 @@ The counterfactual lane (UNIT 3.3), calibration (3.2), selftests (1.9) and recon
 | Q8 | Conflict #2 (theme publish) | Final publish stays Gate THEME_PUBLISH; Shopify Pages (non-theme) are autonomous | 20 clean gated publishes + visual diff + perf proof → owner may reclassify |
 | Q9 | Target scope | **TOTAL store orders (owner decision)**; paid, organic, AI, email shares reported | — |
 | Q10 | Account in AUD/Sydney (unchangeable). A new SEK/Stockholm account under the same manager would remove FX and tz complexity; history lost is small | Stay on current account; revisit at Stage 3 | Maestro prefers migration → new customer id in `gads-env.sh`, one-time re-seed (§24.H) |
-| Q11 (v2.4) | **Is the `Nordisk Wellness Kit` zero-inventory condition real?** Theme-repo gap register G21: `inv=0` on both variants, yet the live page's own cart form buys it — recorded there as "possible live revenue issue — flagged, not resolved" | **Nothing generates until answered** — UNIT 1.21 is gated on it | If real, the highest-value routing target in the account is unfulfillable: cheapest-path analysis identifies Wellness Kit as one of only two products clearing the non-brand break-even bar. Real blocks all paid routing to Wellness-Kit landers |
-| Q12 (v2.4) | **Publish the `nr-*` library now, under the §R3 gated path?** 27 repo-only files incl. all 12 native sections + 6 font files | Not published; UNIT 1.21 blocked | One owner approval converts 12 finished components and 3 finished archetypes from inert to routable, after which page instantiation is autonomous (no theme write per page) |
-| Q13 (v2.4) | **Which image generation provider?** `OPENAI_API_KEY` present and `openai` SDK installed; `GEMINI_API_KEY`/`GOOGLE_API_KEY` **absent** | OpenAI SDK is the available path today | Determines §12.5 tooling, and whether the `gemini-imagegen`/`nrvision` review path the v2.3 spec assumed can run at all |
-| Q14 (v2.4) | **Brand vs activation policy** (companion doc §GL.2.6). A per-ad optimiser converges on most-aware direct-response angles — correct for §3's objective, wrong as a description of how a brand grows | Option 1: activation-only, **explicitly labelled as such in the weekly digest** so the limitation is visible rather than implicit | Determines what the corpus is *for*. Options: (1) activation-only, (2) fixed portfolio split evaluated on a long-horizon metric the account cannot yet support, (3) defer upper-funnel until a volume floor |
-| Q15 (v2.4) | **Display unlock condition** | §22.3 retained; condition made measurable (≥30 orders/mo × 2 AND R1≥0.90/R2≥0.85 × 30d) | Confirms or moves the display timeline; no build before unlock |
-| Q16 (v2.4) | **Build the one genuinely-missing archetype (`ADVERTORIAL`)?** | Not built; treated as follow-on under the same gate | Adds a fourth archetype at the cost of a second gated theme change |
-| Q17 (v2.4) | **Does the corpus *cite* (generator names principle + tier in its rationale) or *silently inject*?** | **Citation with tier**, output-linted, never surfaced to the end reader | Silent injection is less auditable; citation-in-digest invites rhetoric dressed as evidence — hence citation **bounded by tier and kept out of customer-facing copy** |
-| Q18 (v2.4) | Art. 50 Guidelines / Code of Practice subsequent amendments; Sweden's designated AI Act market-surveillance authority; whether marknadsföringslagen (2008:486) contains any AI-specific provision | §12.5 AI-1…AI-7 applied as written; unverified corpus entries load at T3 | Any amendment → AI-7 re-validation. See companion doc Appendix A verification checklist |
 
 Conflicts #3, #4 and #6 of the brief's §15 are adopted as stated (config host; phases with units; Rev 2 product list authoritative via `product_facts`).
 
 ---
 
 ## 24. Appendices
-
-### 24.0 Companion extension (v2.4)
-
-`AUTONOMOUS-ADS-GENERATIVE-LAYER.md` v1.0 — the **Phase 1c generative layer**: full text of the
-persuasion/evidence corpus schema (§GL.2), the research brief contract (§GL.3), the archetype layer
-with the reconnaissance that established what already exists versus what must be built (§GL.4), the
-Art. 50 imagery clause and its source register (§GL.5), data-model deltas (§GL.7), build order
-(§GL.8), an **evidence & provenance register** marking every normative clause as grounded or
-`UNVERIFIED` (§GL.9), open owner questions (§GL.10), and a gap register in the manner of the theme
-repo's (§GL.11).
-
-Kept separate from this document rather than merged, for one reason: its evidence register makes
-explicit which clauses rest on retrieved primary sources and which are design assertions carrying a
-verification obligation. Merging it would blur that distinction, which is the §0.2 discipline applied
-to claims instead of numbers.
 
 ### A. DDL
 Full DDL is §4.3, §4.5 and §4.6. Migration files: `ndb_001_facts.sql`, `adb_001_control.sql`, `pdb_001.sql`, `kdb_001.sql`, `fdb_001.sql` in `ROOT/adsys/migrations/`, applied by `adsys migrate` with backup first and `PRAGMA integrity_check` after.
