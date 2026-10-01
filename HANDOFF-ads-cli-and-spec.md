@@ -417,3 +417,33 @@ customer id (`8479789152`, verified present after restore). The OAuth client sec
 appeared in a transcript during diagnosis — by rule 1.8 it is **burned** and joins the developer
 token on the rotate list. Lesson added: always pass `path=` explicitly in tests; never rely on
 the module default against a live config.
+
+---
+
+## 5. PHASE-0 BUILD PROGRESS — 2026-10-01 (verified on the box)
+
+The autonomy ladder is being built unit-by-unit with `run_guard_tests.sh` as the
+gate. Phase 0 status:
+
+| Unit | Status 2026-10-01 | Evidence |
+|---|---|---|
+| 0.1 skeleton + gads wrapper | **COMMITTED** (7b5b3b0) | 9 tests; gads-ping fails clean AUTH class live |
+| 0.2 measurement state | **COMMITTED** (ee8e515) | 9 fixtures per §4.4; migration applied to NDB |
+| 0.3 ads-monitor budget fix | **COMMITTED** (3500233) | A2/A3 query split (the §5.1 400 bug); budget_aud in output |
+| 0.4 auth probe | **COMMITTED** (952539b) | incident inc-cce5d32256 opened on the real dead token |
+| 0.5 Composio removal | **COMMITTED** (19a11aa) | 0 composio refs in Ads path; legacy parity tests |
+| 0.7 Shopify ingest | **COMMITTED** (bdac81e) | 114 orders, 0 R7 failures, token out of scripts → secrets |
+| 0.8 GA4 ingest | **COMMITTED** (00794ff) | 5 tables live, currency=AUD from metadata (answers §5.2) |
+| 0.10 GA4-join diagnosis | **COMMITTED** (680fff1) | VERDICT CONFIRMED: 15/15 empty client_id → paid tx = 0 |
+| 0.12 disk + temp hygiene | **COMMITTED** (b93a536) | sev-2 DISK_HIGH incident opened (root 92%) |
+| 0.6 multi-grain ingest | NOT BUILT | blocked on live OAuth acceptance; code is buildable |
+| 0.9 / 0.11 / 0.13 | NOT BUILT | depend on 0.6 / live API |
+
+Phase-0 exit criteria status: Composio removed (DONE); zero/measured-zero
+semantics (PASS); ads-monitor budget query (code DONE, live verify pending
+re-auth); G-CONV-1 (pending owner action); 7 consecutive COMPLETE days
+(pending OAuth re-auth — auth has been dead since 2026-09-30).
+
+**The single unblocker for Phase 0 exit is the Google Ads OAuth re-consent**
+(testing-mode app → refresh token expired; move app to Production or re-consent
+weekly). Same re-auth unlocks the CLI dev-token rotation tracking.
