@@ -10,7 +10,8 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4** (2026-09-24) | `50adf9fd920be5e2464a4a68b34e9007` | **Canonical spec.** Amended in place. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.1** (2026-10-01) | `80bd2dc9450825c0dff4f601062593ac` | **Canonical spec.** §1.6 blockers resolved (CVR contradiction + assumed margin); see below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.md` | v2.4 (2026-09-24) | `50adf9fd920be5e2464a4a68b34e9007` | Frozen copy of the pre-fix spec, preserved so the v2.4 md5 still verifies. Superseded by v2.4.1. |
 | `AUTONOMOUS-ADS-GENERATIVE-LAYER.md` | v1.0 (2026-09-24) | `13cfe9a23bcb5798c9e31cf5a9e209ea` | **Companion extension** — Phase 1c (UNIT 1.19–1.23). Deliberately not merged; see its §GL.0. |
 | `HANDOFF-ads-cli-and-spec.md` | 2026-09-24 | — | Transition state: Google Ads CLI status, both workstreams, open owner decisions. |
 
@@ -37,11 +38,19 @@ Four sections were amended and one phase was added. Full detail in
 | **§22.3 display** | "before Stage 4 — no measurable path at this volume" | Same reasoning, **explicit measurable unlock**: ≥30 store orders/month × 2 consecutive months AND R1≥0.90/R2≥0.85 × 14 days | Display is blocked by *statistics*, not capability. The reasoning was kept; the threshold was made falsifiable — and it is flagged as sitting at the optimistic ceiling of the 20–30/month forecast |
 | **§21** | Phases 0–7 | + **Phase 1c** (generative layer) | The generative work is not a prerequisite for the ads machinery and does not belong inside its phases |
 
+## What v2.4.1 changed (2026-10-01)
+
+The two §1.6 blockers from `HANDOFF-ads-cli-and-spec.md` are resolved in the canonical file:
+
+| Area | v2.4 position | v2.4.1 position | Why |
+|---|---|---|---|
+| **§1.6 paid CVR** | Scenario row: 3,500 clicks/month at 1.5% (52 paid orders) while break-even paragraph demanded ≥ 2.3% — by its own math the paid pillar lost −2,549 AUD/month and collided with §8.5 D21 | Scenario row: 2,600 clicks/month at ≈ 2.0% ≥ break-even; break-even recomputed from measured margin; D21 gate stated as a precondition | The 1.5%-vs-2.3% contradiction made the 100-order headline internally inconsistent. With measured COGS the real break-even is ≈ 1.7–1.9%, so 2.0% is a viable scenario value — and every ramp step must still clear D21 |
+| **§1.6 contribution margin** | Assumed 45–50% contribution → `C_new` ≈ 540–600 SEK | **Measured 63.2% gross margin** (HyperSKU supplier export, 18,257 SEK revenue vs 6,711 SEK cost, 2026-09-24) → `C_new` ≈ 700–780 SEK ≈ 111–124 AUD | §0.2 discipline forbade the assumed number; the measured one is cited and entered as `NO_DATA` until UNIT 1.5's stored query reproduces it |
+
 ## What v2.4 deliberately did NOT change
 
-- **§1.6's CVR contradiction (1.5% vs 2.3%) is still there.** It is listed as a fix in the handoff and
-  is a 5-minute edit, but it governs a spend decision, not the system — so it did not block this work.
-- **No economic claim was made or resolved.** v2.4 makes no assertion about profitability.
+- **§1.6's CVR contradiction (1.5% vs 2.3%) — RESOLVED in v2.4.1** (2026-10-01): see above. It stayed open through v2.4 only because it governs a spend decision, not system structure; it is fixed now so the 10× path is internally consistent before any build.
+- **No economic claim was made or resolved.** v2.4.1 fixes the *scenario arithmetic*; it still makes no profitability assertion — break-even and go/no-go remain decisions computed by UNIT 1.5 with real `C_new`.
 - The spend governor, cap layer, ledger, inverse operations and the five gates are untouched.
 
 ---
