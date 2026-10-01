@@ -381,3 +381,39 @@ guard preconditions (now stated in full in §GL.8).
 
 Unchanged from §5: `bin/gads-env.sh` → verify auth (account `Nordisk Renhet`, AUD) → then ask Maestro
 which of go/no-go, §1.6 fix, token rotation, or Phase 0/1c first. **Do not start building unprompted.**
+
+---
+
+## 4. WORKSTREAM A UPDATE — 2026-10-01 (verified live on the box)
+
+Re-verified every item from §2 "Open items in workstream A" against the live scripts. New state:
+
+| # | Open item (from §2) | Status 2026-10-01 | Evidence |
+|---|---|---|---|
+| 1 | Developer token burned (appeared in a transcript) | Still **OPEN — provider action required** | Now stored only in `/root/.secrets.env` (exported via `gads-env.sh`), no plaintext in scripts/config. Rotation itself must happen at Google's API center; box-side hygiene is done. |
+| 2 | Dormant `DELETE ... status='PAUSED' ...` landmine | **CLOSED** | Removed from `refresh-ads-data.sh` with an explanatory comment; the only remaining DELETE is a scoped id+date-window purge used by the upsert. No live script contains the junk-cleanup DELETE (verified by grep of `bin/` + `harvesters/`; only `ads-monitor.sh.bak-20260908` retains it, and no cron references any `.bak`). |
+| 3 | `token_expiry` never updated (field drift) | **CLOSED (code) — live verification blocked on OAuth re-auth** | `gads-auth.py::save_access_token()` writes `token_expiry` (TOML datetime, unquoted) on every token mint, and `cmd_token()` documents the side effect. The drift cannot recur from the writer. NOTE: the live config's `token_expiry` was the LAST field the broken chain updated (2026-09-30) — the access token is stale because the refresh token expired, not because the writer is broken. |
+| 4 | `sed -i` token injection fragility | **CLOSED** | `write_config()` is atomic (tmp → chmod 600 → `os.replace`), regex-replaces only known keys, preserves order, and keeps `token_expiry` unquoted. No `sed -i` remains in any live script. Unit-testable (see note below). |
+| 5 | Weekly-checkpoint divergence / customer-id drift | **CLOSED** | `weekly-ads-checkpoint.sh` rewritten (header documents the incident), sources `gads-env.sh` exclusively, contains zero inline auth logic (verified: 0 matches for refresh/oauth/client_id), hard-fails on unparseable API output instead of emitting a confident all-clear. |
+
+### NEW finding — why auth is down again (2026-10-01)
+
+The refresh grant returns `invalid_grant` ("Token has been expired or revoked"). The last browser
+re-auth was 2026-09-23; seven days later the refresh token dies — the signature of a Google OAuth
+app still in **testing mode** (refresh tokens live ~7 days until the app is verified/published).
+Two consequences:
+
+- Re-auth by Maestro in the browser is required now (same flow as Sep 23).
+- Until the OAuth app is moved from Testing to Production in Google Cloud Console, this will
+  recur **every ~7 days**. Moving it to production is the durable fix and should be scheduled.
+
+### CONFIG INCIDENT (2026-10-01, recorded honestly)
+
+While unit-testing `write_config()`, the test harness imported `gads-auth.py` and a default
+parameter bound `CONFIG` at import time, so the first test write hit the **real**
+`/root/.config/google-ads-pp-cli/config.toml` with a synthetic token. Detected immediately;
+repaired by restoring `config.toml.bak-20260923-193648` and re-applying the single source-of-truth
+customer id (`8479789152`, verified present after restore). The OAuth client secret additionally
+appeared in a transcript during diagnosis — by rule 1.8 it is **burned** and joins the developer
+token on the rotate list. Lesson added: always pass `path=` explicitly in tests; never rely on
+the module default against a live config.
