@@ -72,17 +72,50 @@ lost or altered by this repair.
 | **§6.10 / §13 pre-flight `P-STOCK`** | `P-STOCK (target variant inventory ≥ 5)` — one of the all-must-pass gates before any ad is submitted | **Gate removed.** The `inventory` ingest is retained as a diagnostic snapshot only, explicitly marked "not a gate" | The gate read `variants[].inventory_quantity` — a field that is permanently inert on this store: **every variant is untracked** (`tracked = FALSE`; verified 2026-10-02 across all 9 Wellness-Kit-family products and 49 of 50 store variants). An untracked variant has no stock ceiling, so the value never reflects a limit and the gate would have failed closed on every Wellness-Kit lander forever. §0.1 forbids acting on an unmeasured number |
 | **§23 Q11** | "VERIFIED 2026-10-01 — condition NOT real; owner confirmation solicited" | **RESOLVED 2026-10-02 — owner-confirmed by Maestro** | Same finding, now with the owner's decision recorded, the correct product count (9, not 7), the store-wide scope (49/50 untracked), and the consequence (P-STOCK removed). Theme-repo gap **G21 closed** |
 
-**Loose end, not a blocker.** Three product handles claim the Wellness Kit:
+**Loose end, not a blocker — but the shape was mis-stated in v2.4.2's first pass.** It is not three
+competing handles and *not* a duplicate pile: there are **nine** Wellness-Kit records in two groups,
+and only one group is a genuine choice.
 
-| Handle | Price | Evidence of use |
-|---|---|---|
-| `nordisk-wellness-kit` | 2,189 SEK | The handle in `nordisk_ads_context.json`; 2,189 = 990 + 1,199 matches the spec's hardcoded product truth |
-| `nordisk-renhet-wellness-kit` | 2,189 SEK | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test`; its SKU is `NR-DOUBLE-FILTRATION` |
-| `nordisk-wellness-kit-1` | 2,211 SEK | **The only record that has ever sold** — order `#NR_SE_1104`, 1,711 SEK, 2026-09-03, SKU `NR-WELLNESS-KIT-SE-1`. Its seven siblings (DK/NL/LU/FR/EN) carry 2,211 SEK |
+**Group A — six localized records (legitimate, must not be merged).** Shopify cannot vary product
+images per locale, so a localized product image forces a separate product record. Each of these six
+carries a complete ten-image set in its own language:
 
-One must be named canonical before paid routing is finalised — otherwise the lander CTA and the
-adsys product registry can address different records at different prices. Recorded in
-`HANDOFF-ads-cli-and-spec.md`.
+| Handle | Locale of imagery | SEK | Published |
+|---|---|---|---|
+| `nordisk-kit-ien-etre` | French (`French_*`) | 2,211 | 2026-09-02 |
+| `nordisk-welcome-kit` | English | 2,211 | 2026-09-02 |
+| `nordisk-wellness-kit-1` | German | 2,211 | 2026-09-02 |
+| `nordisk-wellness-saet` | Danish (`Danish_*`) | 2,211 | 2026-09-02 |
+| `nordisk-welness-kit` | Dutch/LU (`Luxembourgish_*`) | 2,211 | 2026-09-02 |
+| `nordisk-welness-pakket` | Dutch/BE (`Flemish_*`) | 2,211 | 2026-09-02 |
+
+All six were **created March 2025** and **published 2026-09-02**. Three defects attach to them:
+(1) the store publishes only **`en`, `fr`, `sv`** locales, so the DE/DA/LU/NL records sell in
+languages the storefront does not serve; (2) all six are published to **Online Store + AI channels
+only** — not to Google & YouTube, Shop, Facebook & Instagram or Pinterest, so they cannot surface in
+Shopping or paid-social feeds; (3) they carry **2,211 SEK** against the spec's hardcoded truth of
+2,189 (= 990 + 1,199).
+
+**Group B — three Swedish records (this is the actual decision).**
+
+| Handle | SEK | Imgs | Created | Evidence of use |
+|---|---|---|---|---|
+| `nordisk-renhet-wellness-kit` | 2,189 | 10 | 2025-03-03 | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test`; SKU `NR-DOUBLE-FILTRATION` |
+| `nordisk-renhet-welcome-kit` | 2,189 | 8 | 2025-03-25 | full channel set |
+| `nordisk-wellness-kit` | 2,189 | **1** | 2025-03-11 | the handle in `nordisk_ads_context.json`; looks like an unfinished stub — one image only |
+
+One of Group B must be named canonical before paid routing is finalised, otherwise the lander CTA and
+the adsys product registry can address different records. **Correction to the first pass:** no ad
+final URL points at any Wellness Kit — live-verified 2026-10-02 across all 22 enabled ads in the three
+delivering campaigns. The kit is reached from the lander's **CTA**, not from the ad's landing URL, so
+this decision does not move any live ad. Also corrected: `nordisk-wellness-kit-1` has **five** localized
+siblings, not seven. The only sale ever recorded is order `#NR_SE_1104` (1,711 SEK, 2026-09-03, SKU
+`NR-WELLNESS-KIT-SE-1`). Recorded in `HANDOFF-ads-cli-and-spec.md`.
+
+**Consequence for the spec:** the single-canonical-handle assumption is itself the defect. Because
+localized imagery forces separate records, **CTA resolution must be locale-aware** — an `en` or `fr`
+campaign cannot be routed to a Swedish record. This is a real gap in §6's product routing, tracked as
+an open decision rather than silently patched.
 
 ## What v2.4 deliberately did NOT change
 

@@ -567,3 +567,48 @@ COMPLETE days* is exactly the interval the token survives.
   hygiene is done: it now lives only in `/root/.secrets.env`, via `gads-env.sh`.
 - **OAuth client secret** — burned in a transcript on 2026-10-01; rotate at Google Cloud.
 - **OAuth app → Production**, per §7.3.
+
+---
+
+## 8. CORRECTION 2026-10-02 — the Wellness Kit "duplicates" are localized records, not duplicates
+
+**Raised by Maestro; verified against the Admin API.** The `ADS-SPEC-VERSIONS.md` §6.4 loose end was
+framed as "three handles claim the Wellness Kit". That was wrong on the count and wrong on the cause.
+There are **nine** records in **two** groups:
+
+- **Six localized records** (`nordisk-kit-ien-etre` FR, `nordisk-welcome-kit` EN,
+  `nordisk-wellness-kit-1` DE, `nordisk-wellness-saet` DA, `nordisk-welness-kit` NL/LU,
+  `nordisk-welness-pakket` NL/BE). Each carries a **complete ten-image set in its own language**
+  (`French_*`, `Danish_*`, `Luxembourgish_*`, `Flemish_*`, …). **Shopify cannot vary images per
+  locale, so these must stay separate products** — consolidating one product with localized text
+  would destroy six sets of localized imagery. They are legitimate.
+- **Three Swedish records** (`nordisk-renhet-wellness-kit` 10 img, `nordisk-renhet-welcome-kit` 8 img,
+  `nordisk-wellness-kit` **1 img / stub**). All 2,189 SEK. This is the real decision.
+
+**Three defects found in the localized group (recorded, not acted on):**
+
+1. **Only `en`, `fr`, `sv` are published store locales.** The DE, DA, LU and NL records therefore sell
+   in languages the storefront does not serve — they cannot be reached by a language-matched shopper
+   until those locales are added.
+2. **Narrow channel set.** All six are published to *Online Store + AI channels only* — **not** to
+   Google & YouTube, Shop, Facebook & Instagram or Pinterest. So they cannot appear in Shopping or
+   paid-social feeds. The Swedish records carry the full channel set.
+3. **Price drift.** The six carry **2,211 SEK**; the spec's hardcoded truth is **2,189** (= 990 + 1,199)
+   and the Swedish records use 2,189.
+
+**Two factual corrections to my own earlier record:**
+
+- **No ad final URL points at any Wellness Kit.** Live-verified 2026-10-02 across all **22 enabled ads
+  in the three delivering campaigns**. The kit is reached from the **lander's CTA** (e.g.
+  `/pages/duschfilter-jamforelse-bast-i-test`), not from the ad's landing URL. No live ad moves
+  whichever handle is chosen.
+- `nordisk-wellness-kit-1` has **five** localized siblings, not seven.
+
+**Consequence for the spec — the real gap.** The single-canonical-handle assumption is the defect. Since
+localized imagery forces separate records, **§6's CTA/product resolution must be locale-aware**: an `en`
+or `fr` campaign must not be routed to a Swedish record. Left as an open decision.
+
+**Also observed while verifying:** only **three** campaigns have enabled ads (`SV SE | Brand - Search`
+3 URLs, `SV SE | Conquest | Competitors` 10, `SV SE | Discovery | Broad Match` 7). The two zero-conversion
+spenders — **`EU EN | Discovery | Broad Match` (455.82 AUD)** and **`SV SE | Search | Investigative`
+(47.81 AUD)** — have **no enabled ads at all**, i.e. they spent and then stopped. Not touched.
