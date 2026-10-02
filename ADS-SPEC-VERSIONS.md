@@ -10,7 +10,8 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.4** (2026-10-02) | `6d99630a98a02fd8dcc3ec14d7e68e50` | **Canonical spec.** The funnel rule is **ruled**, and the ruling reframed it: *not a stage rule but a purchase-intent rule* (§13.2, §23 Q20). Halves the v2.4.3 violation count to **2 of 22** — the three `BRAND` ads are correct under it. Q19 (canonical kit handle) remains **pending arbitration**, sequenced after the current gated theme cycle by the owner. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.5** (2026-10-02) | `6daf57d4030e279c5f363d20180dcd58` | **Canonical spec.** **Q19 resolved, owner-confirmed:** the canonical Swedish Wellness Kit is **`nordisk-renhet-wellness-kit`** (variant `51167026741582`) and the rival 1-media stub was **withdrawn by its own proposer**. Also gains hard evidence for **Q16**: 7 live pages carry `templateSuffix: advertorial-1` with **no advertorial template on live**, so a paid-traffic surface silently renders through the wrong template today. See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.4.md` | v2.4.4 (2026-10-02) | `6d99630a98a02fd8dcc3ec14d7e68e50` | Frozen copy, preserved so the v2.4.4 md5 still verifies. Ruled the funnel contract as a purchase-intent rule. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.3.md` | v2.4.3 (2026-10-02) | `c4175548d919c9aafac03b7cf667e30e` | Frozen copy, preserved so the v2.4.3 md5 still verifies. Recorded Q19/Q20 as open. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.2.md` | v2.4.2 (2026-10-02) | `29919d11bc45de98b199a1bd90ed5809` | Frozen copy, preserved so the v2.4.2 md5 still verifies. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.1.md` | v2.4.1 (2026-10-01) | `80bd2dc9450825c0dff4f601062593ac` | Frozen copy, preserved so the v2.4.1 md5 still verifies. §1.6 blockers resolved; predates the §23 evidence rows. |
@@ -253,6 +254,49 @@ The canonical Wellness-Kit handle is **still pending arbitration** (§23 Q19), a
 ruling is made with both candidates' real state visible rather than mid-flight. `nordisk_ads_context.json`
 continues to point provisionally at `nordisk-renhet-wellness-kit`, with the backup retained.
 
+## What v2.4.5 changed (2026-10-02)
+
+### Q19 resolved — and it closed the same way three independent checks had already pointed
+
+The canonical Wellness-Kit handle had been left as an **arbitration** in v2.4.3 precisely because two agents had reached opposite conclusions. It is now resolved by the owner, and the resolution is the stronger of the two candidates:
+
+| | Winner | Withdrawn |
+|---|---|---|
+| Handle | **`nordisk-renhet-wellness-kit`** | `nordisk-wellness-kit` |
+| Media | **10** | **1** |
+| Variant | **`51167026741582`** | — |
+| SKU | `NR-DOUBLE-FILTRATION` | `NR-WELLNESS-RENHET` |
+| Created | **2025-03-03** | 2025-03-11 |
+| Theme refs | 0 | 9 files / 14 refs |
+
+**The notable part is how it closed.** The rival candidate was not out-voted or overridden — it was **withdrawn by the agent who had proposed it**, after confirming it is a **1-media stub** that should not be canonical for anything. That is the outcome an arbitration is for, and it is worth recording that the process worked: the contested claim was found to be *checkable*, not opinion-dependent. The decider was the media count and the creation date, both of which were already in the record and neither of which needed a judgement call.
+
+**Sales could not break the tie, and that is now a standing fact rather than a gap:** every Swedish record in the family sits at **zero units sold ever**. Anyone re-deriving this decision later should not expect sales data to resolve it.
+
+**`nordisk_ads_context.json` stops being provisional.** It already pointed at the winner, so no edit was needed — the provisional flag is retired and the retained one-line-revert backup is no longer needed for this purpose.
+
+**The forward consequence is the same one the arbitration row predicted, and it survives the ruling intact:** the 3 gempages sections paired with the stub's id must be repointed to **handle + variant `51167026741582` in the same edit**, because the paired `productId` is the authority whenever the handle misses. Changing the handle string alone remains a no-op. Separately, the `nr-*` lander templates were corrected off a **third** record (`nordisk-welcome-kit`, 2,211 SEK) — 7 references, commit `2cbf3cf`, duplicate theme only, zero live drift.
+
+### Q16 gains hard evidence: a live surface is already expecting the `ADVERTORIAL` archetype
+
+Found while verifying the ruling, and independently confirmed: **7 live published pages carry `templateSuffix: advertorial-1`, and no `advertorial` template exists among the live theme's 306 template assets.** Those 7 pages therefore **silently fall back to the default page template today**:
+
+- `how-a-shower-filter-transformed-my-skin-and-hair`
+- `duschfilter-jamforelse-bast-i-test`
+- `torr-hud-efter-duschen-duschfilter`
+- `pfas-i-duschvattnet`
+- `tungmetaller-i-duschvatten`
+- `jamforelse-nordisk-renhet-vs-tappwater`
+- `jamforelse-nordisk-renhet-vs-onlinefilter`
+
+This matters beyond Q16. **One of those pages is an ENABLED ad's own `final_url`** — the comparison advertorial — so a surface that is actively receiving paid traffic is rendering through a template it was not designed for. Three consequences, none of which require adsys to act:
+
+1. **The missing template is a pre-existing defect** and is worth fixing on its own merits, independent of the generative layer. It is not caused by, and does not wait on, any adsys work.
+2. **The cost calculus of Q16 improves.** `ADVERTORIAL` has a live consumer already declaring intent for it, so building it is closer to *fulfilling a declared intent* than to *adding a new surface*. That is a different proposition from the one Q16 was written against.
+3. **Reading an advertorial for content today is unsafe** — until the template exists, any analysis of those 7 pages is analysis of the fallback layout, not of an advertorial.
+
+**Nothing was written to the live theme, and no live page or ad was touched.** Every read behind this section was read-only.
+
 ## What v2.4 deliberately did NOT change
 
 - **§1.6's CVR contradiction (1.5% vs 2.3%) — RESOLVED in v2.4.1** (2026-10-01): see above. It stayed open through v2.4 only because it governs a spend decision, not system structure; it is fixed now so the 10× path is internally consistent before any build.
@@ -296,14 +340,7 @@ See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q20**. The two that gate work
    sections and 6 font files. Note it is a theme write, so the live-theme guardrail governs the path.
 3. **Q13 — image generation provider?** Facts corrected 2026-10-01 (OpenAI key absent; OpenRouter
    `google/gemini-3-pro-image` available). Owner pick still outstanding; determines §12.5 tooling.
-4. **Canonical Wellness Kit handle?** Raised by the Q11 verification, and now its own row — **§23 Q19**.
-   **PENDING ARBITRATION, and the owner has sequenced it deliberately:** the ruling waits until the
-   current gated theme-publish cycle finishes, so it is made with both candidates' real state visible
-   rather than mid-flight. Two agents picked opposite candidates from the same live reads
-   (`nordisk-renhet-wellness-kit` — 10 media, the advertorial's CTA target; `nordisk-wellness-kit` —
-   **1 media**, referenced by 9 theme files). Both are active, both are 2,189 SEK, and the store's
-   landers buy both. Sales cannot break the tie: all three original Swedish records are at zero units.
-   The applied `nordisk_ads_context.json` edit is provisional.
+4. **Canonical Wellness Kit handle — RESOLVED 2026-10-02 (§23 Q19).** `nordisk-renhet-wellness-kit` (variant `51167026741582`). The rival 1-media stub was **withdrawn by the agent who proposed it**. Sales could not break the tie (every Swedish record: zero units ever) and did not need to — media count and creation date decided it. `nordisk_ads_context.json` stops being provisional. **Carried forward:** the 3 stub-paired gempages sections need handle + variant `51167026741582` **in the same edit**; a handle-only change is a no-op.
 5. **Q20 — scope of the funnel contract — RULED 2026-10-02.** The owner's rule is a **purchase-intent
    rule, not a stage rule**: a product page is permitted as an ad destination where intent is
    demonstrated (brand / `MOST_AWARE`, or a user tracked across prior ad touches) and is never
