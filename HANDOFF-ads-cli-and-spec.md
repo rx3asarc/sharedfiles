@@ -507,3 +507,63 @@ drafted or consolidated.
 2. **Q12** — publish the `nr-*` library under the §R3 gated path. This is now the **first** blocker on UNIT 1.21 (it previously sat behind Q11). It is a theme write, so the live-theme guardrail governs the path.
 3. **Q13** — image-provider pick. The working path is OpenRouter `google/gemini-3-pro-image`.
 4. **Canonical handle** — §6.4.
+
+---
+
+## 7. UPDATE 2026-10-02 (later) — OAuth re-consented: auth LIVE, first real data since 2026-09-30
+
+**The Phase-0 exit blocker is cleared.** Maestro completed the browser consent; the code was exchanged
+on the box and verified live. Nothing in the ad account was changed — read + local ingest only.
+
+### 7.1 Verification chain (all green)
+
+| Step | Result |
+|---|---|
+| `gads-auth.py finish <callback>` | exchanged; tokens saved |
+| `gads-auth.py check` → live API | **OK** — `customers/8479789152`, descriptiveName `Nordisk Renhet` |
+| `token_expiry` in config | written as `2026-10-02T13:12:37+02:00` |
+| `gads-auth.py refresh` (durable path) | **OK** — fresh access token minted from the stored refresh token |
+| `refresh-ads-data.sh` | `TOKEN_REFRESHED`, `{"ok": true, "inserted": 59, "campaign_count": 4, "date_range": "2026-09-02 to 2026-10-01", "stale_rows_deleted": 58}` |
+| `harvesters/ads-monitor.sh` | ran clean (this job had **115 failures** under the bad customer id) |
+
+Workstream-A open item **#3 (`token_expiry` drift) is now live-verified**, not merely code-closed: the
+writer updates the field on every mint, and the field is correct after a real refresh.
+
+### 7.2 First real campaign data since 2026-09-30 — ENABLED only (rule 1.2)
+
+Spend in **AUD** (account 8479789152), window 2026-09-02 → 2026-10-01:
+
+| Campaign | AUD | impressions | clicks | conversions |
+|---|---|---|---|---|
+| **EU EN \| Discovery \| Broad Match** | **455.82** | 3195 | 164 | **0.0** |
+| SV SE \| Brand - Search | 76.58 | 167 | 59 | **0.618** |
+| SV SE \| Search \| Investigative | 47.81 | 453 | 36 | 0.0 |
+| SV SE \| Discovery \| Broad Match | 17.67 | 167 | 9 | 0.0 |
+
+Two observations, recorded as findings rather than actions (no change was made):
+
+1. **Brand search carries the only measured conversions in the account** (0.618) — materially different
+   from the 0.009/90d figure the whole spec was briefed against. Confirm the conversion action behind
+   it before treating it as a signal (§0.1: an unverified number is `NO_DATA`).
+2. **The EN discovery broad-match campaign is ~76% of enabled spend with zero conversions.** It is
+   also broad match, and the standing rule requires ≥20 effective negatives on any broad campaign
+   before it runs — check `P-NEG20` against it before drawing conclusions. No bid, budget, keyword or
+   negative was altered.
+
+### 7.3 Durability — the recurring break is NOT yet fixed
+
+Auth died three times on the same ~7-day cycle (last re-auths: 2026-09-23 → 2026-09-30 → 2026-10-02).
+That is the signature of the OAuth app still being in **Testing** mode, where refresh tokens expire in
+about seven days.
+
+**The durable fix is publishing the app** (OAuth consent screen → Publish app; or set User type
+**Internal** if the Google account is on a Workspace domain). **Not yet confirmed done.** Until it is,
+expect to repeat this re-consent weekly — and note that Phase-0's exit criterion of *7 consecutive
+COMPLETE days* is exactly the interval the token survives.
+
+### 7.4 Still outstanding in workstream A
+
+- **Developer token rotation** — provider action at Google's API center (item #2, §2). Box-side
+  hygiene is done: it now lives only in `/root/.secrets.env`, via `gads-env.sh`.
+- **OAuth client secret** — burned in a transcript on 2026-10-01; rotate at Google Cloud.
+- **OAuth app → Production**, per §7.3.
