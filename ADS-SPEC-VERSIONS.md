@@ -10,10 +10,12 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.1** (2026-10-01) | `80bd2dc9450825c0dff4f601062593ac` | **Canonical spec.** §1.6 blockers resolved (CVR contradiction + assumed margin); see below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.2** (2026-10-02) | `29919d11bc45de98b199a1bd90ed5809` | **Canonical spec.** `P-STOCK` removed — it gated on a permanently inert field; §23 Q11 resolved and **owner-confirmed**; the §23 Q11/Q13 evidence rows are now formally versioned. See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.1.md` | v2.4.1 (2026-10-01) | `80bd2dc9450825c0dff4f601062593ac` | Frozen copy, preserved so the v2.4.1 md5 still verifies. §1.6 blockers resolved; predates the §23 evidence rows. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.md` | v2.4 (2026-09-24) | `50adf9fd920be5e2464a4a68b34e9007` | Frozen copy of the pre-fix spec, preserved so the v2.4 md5 still verifies. Superseded by v2.4.1. |
-| `AUTONOMOUS-ADS-GENERATIVE-LAYER.md` | v1.0 (2026-09-24) | `13cfe9a23bcb5798c9e31cf5a9e209ea` | **Companion extension** — Phase 1c (UNIT 1.19–1.23). Deliberately not merged; see its §GL.0. |
-| `HANDOFF-ads-cli-and-spec.md` | 2026-09-24 | — | Transition state: Google Ads CLI status, both workstreams, open owner decisions. |
+| `AUTONOMOUS-ADS-GENERATIVE-LAYER.md` | **v1.0.1** (2026-10-02) | `6997f1b14ca771346f11b3afbab1ed7a` | **Companion extension** — Phase 1c (UNIT 1.19–1.23). GL.4.7 / GL.10 Q1 resolved: the "zero-inventory" condition is not a stock condition. Deliberately not merged; see its §GL.0. |
+| `AUTONOMOUS-ADS-GENERATIVE-LAYER-v1.0.md` | v1.0 (2026-09-24) | `13cfe9a23bcb5798c9e31cf5a9e209ea` | Frozen copy, preserved so the v1.0 md5 still verifies. |
+| `HANDOFF-ads-cli-and-spec.md` | 2026-09-24, updated 2026-10-02 | — | Transition state: Google Ads CLI status, both workstreams, open owner decisions, and the canonical-handle question. |
 
 ## Frozen / superseded
 
@@ -46,6 +48,41 @@ The two §1.6 blockers from `HANDOFF-ads-cli-and-spec.md` are resolved in the ca
 |---|---|---|---|
 | **§1.6 paid CVR** | Scenario row: 3,500 clicks/month at 1.5% (52 paid orders) while break-even paragraph demanded ≥ 2.3% — by its own math the paid pillar lost −2,549 AUD/month and collided with §8.5 D21 | Scenario row: 2,600 clicks/month at ≈ 2.0% ≥ break-even; break-even recomputed from measured margin; D21 gate stated as a precondition | The 1.5%-vs-2.3% contradiction made the 100-order headline internally inconsistent. With measured COGS the real break-even is ≈ 1.7–1.9%, so 2.0% is a viable scenario value — and every ramp step must still clear D21 |
 | **§1.6 contribution margin** | Assumed 45–50% contribution → `C_new` ≈ 540–600 SEK | **Measured 63.2% gross margin** (HyperSKU supplier export, 18,257 SEK revenue vs 6,711 SEK cost, 2026-09-24) → `C_new` ≈ 700–780 SEK ≈ 111–124 AUD | §0.2 discipline forbade the assumed number; the measured one is cited and entered as `NO_DATA` until UNIT 1.5's stored query reproduces it |
+
+## What v2.4.2 changed (2026-10-02)
+
+### 1 — A version-integrity defect, found and repaired
+
+Commit `029cb48` (*"Spec §23: record Q11/Q13 live-verification evidence"*, 2026-10-01) edited the canonical
+file but **neither bumped the header version nor updated this tracker**. The md5 chain shows it plainly:
+
+| Commit | Header says | Actual md5 | Matches this tracker? |
+|---|---|---|---|
+| `1c37fe1` | v2.4.1 | `80bd2dc9450825c0dff4f601062593ac` | ✅ yes |
+| `029cb48`, `f85f617` (HEAD) | v2.4.1 | `04249f9caebb71d174d960dd39e9c3a3` | ❌ **no** |
+
+v2.4.2 folds that undeclared edit into the record: the §23 Q11/Q13 evidence rows are now part of a
+versioned revision, and the v2.4.1 md5 remains retrievable via the frozen copy below. No content was
+lost or altered by this repair.
+
+### 2 — `P-STOCK` removed, and Q11 closed
+
+| Area | v2.4.1 position | v2.4.2 position | Why |
+|---|---|---|---|
+| **§6.10 / §13 pre-flight `P-STOCK`** | `P-STOCK (target variant inventory ≥ 5)` — one of the all-must-pass gates before any ad is submitted | **Gate removed.** The `inventory` ingest is retained as a diagnostic snapshot only, explicitly marked "not a gate" | The gate read `variants[].inventory_quantity` — a field that is permanently inert on this store: **every variant is untracked** (`tracked = FALSE`; verified 2026-10-02 across all 9 Wellness-Kit-family products and 49 of 50 store variants). An untracked variant has no stock ceiling, so the value never reflects a limit and the gate would have failed closed on every Wellness-Kit lander forever. §0.1 forbids acting on an unmeasured number |
+| **§23 Q11** | "VERIFIED 2026-10-01 — condition NOT real; owner confirmation solicited" | **RESOLVED 2026-10-02 — owner-confirmed by Maestro** | Same finding, now with the owner's decision recorded, the correct product count (9, not 7), the store-wide scope (49/50 untracked), and the consequence (P-STOCK removed). Theme-repo gap **G21 closed** |
+
+**Loose end, not a blocker.** Three product handles claim the Wellness Kit:
+
+| Handle | Price | Evidence of use |
+|---|---|---|
+| `nordisk-wellness-kit` | 2,189 SEK | The handle in `nordisk_ads_context.json`; 2,189 = 990 + 1,199 matches the spec's hardcoded product truth |
+| `nordisk-renhet-wellness-kit` | 2,189 SEK | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test`; its SKU is `NR-DOUBLE-FILTRATION` |
+| `nordisk-wellness-kit-1` | 2,211 SEK | **The only record that has ever sold** — order `#NR_SE_1104`, 1,711 SEK, 2026-09-03, SKU `NR-WELLNESS-KIT-SE-1`. Its seven siblings (DK/NL/LU/FR/EN) carry 2,211 SEK |
+
+One must be named canonical before paid routing is finalised — otherwise the lander CTA and the
+adsys product registry can address different records at different prices. Recorded in
+`HANDOFF-ads-cli-and-spec.md`.
 
 ## What v2.4 deliberately did NOT change
 
@@ -82,10 +119,17 @@ documents and the two largest are logged as gaps **GL-G15** and **GL-G16**.
 
 See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q18**. The two that gate work:
 
-1. **Q11 — is the `Nordisk Wellness Kit` zero-inventory condition real?** (theme-repo gap register G21).
-   Nothing generates until answered: if real, the highest-value routing target in the account cannot
-   be fulfilled.
-2. **Q14 — brand vs activation policy.** A per-ad optimiser converges on most-aware direct-response
+1. **Q11 — is the `Nordisk Wellness Kit` zero-inventory condition real?** — **RESOLVED 2026-10-02** (owner-confirmed).
+   It was never a stock condition: inventory tracking is off store-wide, so `inv=0` was a static
+   placeholder and the product has no stock ceiling. G21 is closed and `P-STOCK` was removed in v2.4.2.
+2. **Q12 — publish the `nr-*` library under the §R3 gated path?** Still open, and now the **first
+   blocker** on UNIT 1.21 (it was previously behind Q11). 27 repo-only files, including all 12 native
+   sections and 6 font files. Note it is a theme write, so the live-theme guardrail governs the path.
+3. **Q13 — image generation provider?** Facts corrected 2026-10-01 (OpenAI key absent; OpenRouter
+   `google/gemini-3-pro-image` available). Owner pick still outstanding; determines §12.5 tooling.
+4. **Canonical Wellness Kit handle?** New, raised by the Q11 verification — three handles disagree on
+   price and record. See `HANDOFF-ads-cli-and-spec.md`.
+5. **Q14 — brand vs activation policy.** A per-ad optimiser converges on most-aware direct-response
    angles. Correct for the spec's stated objective, wrong as a description of how a brand grows.
    Default applied: activation-only, **explicitly labelled as such in the digest** so the limitation
    is visible rather than silent.

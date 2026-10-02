@@ -447,3 +447,63 @@ re-auth); G-CONV-1 (pending owner action); 7 consecutive COMPLETE days
 **The single unblocker for Phase 0 exit is the Google Ads OAuth re-consent**
 (testing-mode app → refresh token expired; move app to Production or re-consent
 weekly). Same re-auth unlocks the CLI dev-token rotation tracking.
+
+---
+
+## 6. UPDATE 2026-10-02 — Q11 closed, `P-STOCK` removed, tracker repaired
+
+All verification below was **read-only** against Shopify and Google Ads. Nothing in the store, the
+account, or any theme was changed. Spec edits are documentation only.
+
+### 6.1 Q11 answered — the "zero-inventory" condition is not a stock condition
+
+**Owner-confirmed by Maestro, 2026-10-02.** Live Shopify Admin API check (read-only):
+
+| Check | Result |
+|---|---|
+| Wellness-Kit-family inventory items | **all 9 have every variant `tracked = FALSE`** (SE/DK/NL/LU/FR/EN + 3 legacy records) |
+| `available` at the only linked location (`Smedsuddsvägen 23`) | `null` — never set; `Hypersku` holds no levels for these items |
+| Store-wide control | **49 of 50 variants are untracked**; only `nordisk-duschhuvud-copy` is tracked |
+| Live cart behaviour | buys the item — exactly what untracked means (no stock ceiling) |
+
+An untracked variant has no stock limit, so `inv=0` is a static placeholder rather than a constraint.
+Theme-repo gap **G21 is closed**. (Direct `.js` storefront probing returned HTTP 429 — Shopify bot
+protection; the Admin API is the authoritative source and G21's own note already recorded that the
+cart form buys it.)
+
+### 6.2 `P-STOCK` removed from the pre-flight (canonical spec → v2.4.2)
+
+The gate required `target variant inventory ≥ 5`, read from that same dead field, so it would have
+failed closed on **every** Wellness-Kit lander — permanently. It is removed from the §13 pre-flight
+chain. The `inventory` ingest is **retained** as a diagnostic snapshot and explicitly marked
+"not a gate". §23 Q11 now reads **RESOLVED — owner-confirmed**.
+
+### 6.3 Version-integrity defect found and repaired
+
+`029cb48` ("Spec §23: record Q11/Q13 live-verification evidence", 2026-10-01) edited the canonical
+file **without bumping the header version or updating `ADS-SPEC-VERSIONS.md`**. The md5 chain proved
+it: `1c37fe1` → `80bd2dc9…` (declared) vs `029cb48`/HEAD → `04249f9c…` (actual). v2.4.2 folds that
+undeclared edit into the version record, and v2.4.1 is frozen as
+`AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.1.md` so its md5 remains retrievable. The companion doc is bumped
+to **v1.0.1** (GL.4.7 / GL.10 Q1 resolved) with v1.0 frozen likewise. No content was altered by this
+repair.
+
+### 6.4 New owner decision — which Wellness Kit is canonical?
+
+| Handle | Price | Why it is a candidate |
+|---|---|---|
+| `nordisk-wellness-kit` | 2,189 SEK | The handle in `nordisk_ads_context.json`; 990 + 1,199 matches the spec's product truth |
+| `nordisk-renhet-wellness-kit` | 2,189 SEK | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test` (its SKU is `NR-DOUBLE-FILTRATION`) |
+| `nordisk-wellness-kit-1` | 2,211 SEK | **The only record that has ever sold** — order `#NR_SE_1104`, 1,711 SEK, 2026-09-03, SKU `NR-WELLNESS-KIT-SE-1`. Its seven siblings (DK/NL/LU/FR/EN) also carry 2,211 SEK |
+
+Until one is named canonical, the lander CTA and the adsys product registry can address **different
+records at different prices**. Recommendation: `nordisk-wellness-kit` (registry handle, spec-correct
+price), then repoint the lander CTA off the legacy handle. The seven 2,211 SEK duplicates should be
+drafted or consolidated.
+
+### 6.5 What still blocks
+
+1. **Google Ads OAuth re-consent** — unchanged; still the single Phase-0 exit blocker and the precondition for §6.6 live verification and the CLI workstream.
+2. **Q12** — publish the `nr-*` library under the §R3 gated path. This is now the **first** blocker on UNIT 1.21 (it previously sat behind Q11). It is a theme write, so the live-theme guardrail governs the path.
+3. **Q13** — image-provider pick. The working path is OpenRouter `google/gemini-3-pro-image`.
+4. **Canonical handle** — §6.4.

@@ -1,7 +1,6 @@
 # AUTONOMOUS-ADS-GENERATIVE-LAYER.md
 
-Companion extension to `AUTONOMOUS-ADS-ARCHITECTURE2.md` (v2.3 → v2.4; parent now at **v2.4.2**).
-Version 1.0.1, 2026-10-02 — **GL.4.7 / GL.10 Q1 resolved**: the Wellness Kit "zero-inventory" condition is not a stock condition (inventory tracking is off store-wide), theme-repo gap G21 is closed, and the parent spec's `P-STOCK` gate — which consumed that dead field — was removed in parent v2.4.2. Only GL.4.7, this header and GL.10 changed; the generative layer itself is unchanged.
+Companion extension to `AUTONOMOUS-ADS-ARCHITECTURE2.md` (v2.3 → v2.4).
 Version 1.0, 2026-09-24. Adds **Phase 1c — Generative Layer** (UNIT 1.19–1.23) and amends
 §12.1, §12.4, §12.5, §12.6, §13.1, §13.2, §21, §22, §23 of the parent spec.
 
@@ -563,27 +562,18 @@ that do not sell:
 Per the register's own rule — *"a check that has never failed has not been tested"* — each must be
 demonstrated failing on a deliberately broken state before it may pass a real one.
 
-### GL.4.7 Resolved: the "possible live revenue issue" was not one
+### GL.4.7 Separately: a possible live revenue issue
 
-The same register carried an unresolved item (**G21**): the `Nordisk Wellness Kit` reports
-`inv=0` on both variants, **yet the live page's own cart form buys it**.
+The same register carries an unresolved item (**G21**): the `Nordisk Wellness Kit` reports
+`inv=0` on both variants, **yet the live page's own cart form buys it**. The register says
+"Possible live revenue issue — flagged, not resolved."
 
-**Resolved 2026-10-02 — this is neither a revenue issue nor a stock condition.** Inventory tracking
-is **off** on every Wellness-Kit variant (`tracked = FALSE`; verified live across all 9
-Wellness-Kit-family products, and 49 of 50 store variants store-wide), so `inv=0` is a static
-placeholder and an untracked variant has **no stock ceiling** — which is exactly why the cart form
-buys it. G21 is therefore closed in the theme-repo gap register.
-
-Consequence for this document: the parent spec's `P-STOCK` pre-flight gate required
-`target variant inventory ≥ 5` from that same dead field, so it would have failed closed on **every**
-Wellness-Kit lander forever. It is **removed in parent v2.4.2** (see §23 Q11).
-
-UNIT 1.21 is no longer gated on this question; it remains gated on **GL.10 #2** (the owner-gated
-`nr-*` publish). One loose end is carried into the HANDOFF rather than blocking here: **three handles
-claim this product** — `nordisk-wellness-kit` (2,189 SEK, the handle in `nordisk_ads_context.json`),
-`nordisk-renhet-wellness-kit` (2,189 SEK, the CTA target of `/pages/duschfilter-jamforelse-bast-i-test`),
-and `nordisk-wellness-kit-1` (2,211 SEK, the only record that has ever sold — order `#NR_SE_1104`,
-1,711 SEK, 2026-09-03). One must be named canonical before paid routing is finalised.
+This is not part of the generative layer and this document does not resolve it — it is outside
+scope and requires a human decision. It is recorded here because **unit 1.21 would route paid
+traffic to Wellness-Kit-bearing landers**, and the cheapest-path analysis separately identifies
+Wellness Kit as one of only two products that clear the non-brand break-even bar. If inventory is
+genuinely zero, the highest-value routing target in the account is also the one that cannot be
+fulfilled. **Owner action requested before 1.21 generates anything.**
 
 ### Acceptance
 - `nrtheme status` reports zero `nr-*` files absent from live after the gated publish.
@@ -944,7 +934,7 @@ not of the external world.)*
 - Whether Sweden has designated its AI Act market-surveillance authority
 - Whether any enforcement action exists specifically on AI-generated ad imagery in the EU/Nordics
 - The exact third EU icon's label
-- ~~Whether the `Nordisk Wellness Kit` zero-inventory condition (G21) is real and live~~ — **RESOLVED 2026-10-02: it is not a stock condition (tracking is off store-wide). G21 closed; parent `P-STOCK` removed in v2.4.2**
+- Whether the `Nordisk Wellness Kit` zero-inventory condition (G21) is real and live
 - **Whether any part of Art. 50(2) marking was deferred for systems that are both interactive and
   generative** — one retrieved source indicates a deferral limited to the marking obligation. This
   matters because AI-4 (provenance non-stripping) is entangled with the provider/deployer split
@@ -967,7 +957,7 @@ dangerous than no brief — it is the §0.2 failure mode one level up.
 
 | # | Question | Default applied (work not blocked) | What changes if answered differently |
 |---|---|---|---|
-| 1 | ~~Is the `Nordisk Wellness Kit` zero-inventory condition real? (theme-repo G21)~~ **RESOLVED 2026-10-02 — not real; owner-confirmed** | Answered; **1.21 is no longer gated on this** (it remains gated on #2, the `nr-*` publish) | — (was: unfulfillable → would block paid routing to Wellness-Kit landers). G21 closed; parent `P-STOCK` gate removed in v2.4.2 |
+| 1 | Is the `Nordisk Wellness Kit` zero-inventory condition real? (theme-repo G21) | Nothing generates until answered — 1.21 gated | If real, the highest-value routing target in the account is unfulfillable. Blocks paid routing to Wellness-Kit landers |
 | 2 | Publish the `nr-*` library now, under the §R3 gated path? | Not published; 1.21 blocked | Publishing unlocks three archetypes at one approval cost |
 | 3 | Which image provider? (`GEMINI_API_KEY` absent; OpenAI key present) | OpenAI SDK is the available path | Determines §12.5 tooling and whether `nrvision`-style review keeps working |
 | 4 | Brand/activation policy (§GL.2.6) | Option 1, activation-only, labelled as such in the digest | Determines what the corpus is *for*, and whether upper-funnel work is ever funded |
