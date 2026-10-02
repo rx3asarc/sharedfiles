@@ -10,7 +10,8 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.3** (2026-10-02) | `c4175548d919c9aafac03b7cf667e30e` | **Canonical spec.** Records the owner's funnel contract as a **conflict with §13.2/§13.3** rather than new law (§23 Q20), and puts the canonical Wellness-Kit handle to the owner as an **arbitration** (§23 Q19). Also records the two `nr-` handle renames + 4 redirects, and a corrected theme inventory for kit-handle references (39 files / 6 handles / 86 references, all with `productId` fallbacks). See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.4** (2026-10-02) | `6d99630a98a02fd8dcc3ec14d7e68e50` | **Canonical spec.** The funnel rule is **ruled**, and the ruling reframed it: *not a stage rule but a purchase-intent rule* (§13.2, §23 Q20). Halves the v2.4.3 violation count to **2 of 22** — the three `BRAND` ads are correct under it. Q19 (canonical kit handle) remains **pending arbitration**, sequenced after the current gated theme cycle by the owner. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.3.md` | v2.4.3 (2026-10-02) | `c4175548d919c9aafac03b7cf667e30e` | Frozen copy, preserved so the v2.4.3 md5 still verifies. Recorded Q19/Q20 as open. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.2.md` | v2.4.2 (2026-10-02) | `29919d11bc45de98b199a1bd90ed5809` | Frozen copy, preserved so the v2.4.2 md5 still verifies. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.1.md` | v2.4.1 (2026-10-01) | `80bd2dc9450825c0dff4f601062593ac` | Frozen copy, preserved so the v2.4.1 md5 still verifies. §1.6 blockers resolved; predates the §23 evidence rows. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.md` | v2.4 (2026-09-24) | `50adf9fd920be5e2464a4a68b34e9007` | Frozen copy of the pre-fix spec, preserved so the v2.4 md5 still verifies. Superseded by v2.4.1. |
@@ -202,6 +203,56 @@ distinct kit handles across 86 references**, not 5 sections. Every reference is 
   read-only; the only write anywhere in this workstream was the single `nordisk_ads_context.json`
   handle field (backup retained), and it is provisional per Q19.
 
+## What v2.4.4 changed (2026-10-02)
+
+### The funnel rule is ruled — and the ruling changed what it *is*
+
+v2.4.3 recorded the owner's contract as a conflict it was not entitled to resolve. The owner ruled on
+2026-10-02, and the answer is not a scope choice between the two readings that were offered:
+
+> *"most aware should go to product page . but … this is where those users should go, whomfrom we can
+> see there is clea[r] inten[t] to purchase, aka, we have tracked them over a few ads, and then send
+> them to product page"*
+
+That is a **purchase-intent rule, not a stage rule.** The stage table describes what a user *knows*; the
+ruling conditions the destination on what a user *does*. The two are not interchangeable, and the
+practical consequences differ in both directions:
+
+| | Effect |
+|---|---|
+| Product page permitted as an ad destination | brand / `MOST_AWARE` search, or a user tracked across prior ad touches — **evidence of intent** |
+| Product page banned as an ad destination | cold non-brand acquisition — still absolute |
+| Product page as a lander **CTA target** | always permitted; unchanged, and the kit's normal path |
+| **§13.2's `SOLUTION_AWARE` / `PRODUCT_AWARE` → `PRODUCT`** | **left in place, still flagged.** The ruling does not address them, and deleting two awareness rows would silently re-route more than the ad change it was meant to enable |
+
+**The violation count from v2.4.3 was wrong, and the ruling shows why: it is 2 of 22, not 5.** The
+three `BRAND` ads that v2.4.3 listed as violations are the exact case the ruling permits. The two real
+violations are the non-brand product-page ads (`818400446073`, `816987228238`). A fifth ad
+(`812545048936`) is flagged for a different reason — it points at `/collections/all`, which is neither
+a product page nor a lander, and under this ruling brand traffic has purchase intent, so a collection
+index is a worse destination than the product page that *is* permitted.
+
+**Recorded as a working rule, not settled doctrine — the owner says so himself:** *"i am personal[ly]
+not yet educated enough with google remartketing across display and youtube and pmax and so on"* and
+*"this can be different, thats just what im thinking is currenltyy perhaps the best"*. Two consequences
+follow, and both are load-bearing:
+
+1. **The multi-touch half is not executable today.** *"Tracked them over a few ads"* presumes a
+   retargeting layer, and **§22.3 blocks Display until ≥30 store orders/month for 2 consecutive
+   months** against a measured baseline of **9 orders/month**. The intent is recorded so it is not
+   lost; **it is not a build ticket, and the display gate is not to be worked around.**
+2. **`VSL` and `SALES_PAGE` still do not exist in §13.1's `lander_class`.** The owner named both as
+   valid CTA-target surfaces; the enum cannot address them yet. Open.
+
+**No live ad was changed by this revision.** Read-only throughout.
+
+### Q19 status at v2.4.4
+
+The canonical Wellness-Kit handle is **still pending arbitration** (§23 Q19), and the owner has
+**sequenced it deliberately**: it waits until the current gated theme-publish cycle finishes, so the
+ruling is made with both candidates' real state visible rather than mid-flight. `nordisk_ads_context.json`
+continues to point provisionally at `nordisk-renhet-wellness-kit`, with the backup retained.
+
 ## What v2.4 deliberately did NOT change
 
 - **§1.6's CVR contradiction (1.5% vs 2.3%) — RESOLVED in v2.4.1** (2026-10-01): see above. It stayed open through v2.4 only because it governs a spend decision, not system structure; it is fixed now so the 10× path is internally consistent before any build.
@@ -246,17 +297,24 @@ See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q20**. The two that gate work
 3. **Q13 — image generation provider?** Facts corrected 2026-10-01 (OpenAI key absent; OpenRouter
    `google/gemini-3-pro-image` available). Owner pick still outstanding; determines §12.5 tooling.
 4. **Canonical Wellness Kit handle?** Raised by the Q11 verification, and now its own row — **§23 Q19**.
-   **PENDING ARBITRATION:** two agents picked opposite candidates from the same live reads
+   **PENDING ARBITRATION, and the owner has sequenced it deliberately:** the ruling waits until the
+   current gated theme-publish cycle finishes, so it is made with both candidates' real state visible
+   rather than mid-flight. Two agents picked opposite candidates from the same live reads
    (`nordisk-renhet-wellness-kit` — 10 media, the advertorial's CTA target; `nordisk-wellness-kit` —
    **1 media**, referenced by 9 theme files). Both are active, both are 2,189 SEK, and the store's
    landers buy both. Sales cannot break the tie: all three original Swedish records are at zero units.
    The applied `nordisk_ads_context.json` edit is provisional.
-5. **Q19 / Q20 are the two rows v2.4.3 adds.** **Q20 — scope of the funnel contract** — is the other one
-   that gates work: the owner's *never ad → product page* rule contradicts §13.2's `PRODUCT` lander
-   class and §13.3's `"Klor & Vatten" → product page` bucket, and 5 of 22 ENABLED ads implement it
-   today. The unresolved question is whether the ban covers brand / most-aware traffic. Strict reading
-   applied to new routing only; existing ads untouched.
-5. **Q14 — brand vs activation policy.** A per-ad optimiser converges on most-aware direct-response
+5. **Q20 — scope of the funnel contract — RULED 2026-10-02.** The owner's rule is a **purchase-intent
+   rule, not a stage rule**: a product page is permitted as an ad destination where intent is
+   demonstrated (brand / `MOST_AWARE`, or a user tracked across prior ad touches) and is never
+   permitted for cold non-brand acquisition. This **halved the violation count to 2 of 22** — the three
+   `BRAND` ads v2.4.3 listed are correct under the ruling; the 2 real violations are the non-brand
+   product-page ads, and a fifth brand ad is flagged for pointing at `/collections/all`.
+   `SOLUTION_AWARE` / `PRODUCT_AWARE` → `PRODUCT` were **left in §13.2, still flagged** — the ruling
+   does not address them. The owner flags his own answer as provisional, and its multi-touch half is
+   **not executable**: it presumes a retargeting layer that **§22.3's display gate blocks** until ≥30
+   store orders/month × 2 against a measured 9/month. Recorded as intent, **not** a build ticket.
+6. **Q14 — brand vs activation policy.** A per-ad optimiser converges on most-aware direct-response
    angles. Correct for the spec's stated objective, wrong as a description of how a brand grows.
    Default applied: activation-only, **explicitly labelled as such in the digest** so the limitation
    is visible rather than silent.
