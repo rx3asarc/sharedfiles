@@ -488,25 +488,49 @@ undeclared edit into the version record, and v2.4.1 is frozen as
 to **v1.0.1** (GL.4.7 / GL.10 Q1 resolved) with v1.0 frozen likewise. No content was altered by this
 repair.
 
-### 6.4 New owner decision — which Wellness Kit is canonical?
+### 6.4 Owner decision — which Wellness Kit is canonical? **→ now spec §23 Q19, PENDING ARBITRATION**
 
-| Handle | Price | Why it is a candidate |
-|---|---|---|
-| `nordisk-wellness-kit` | 2,189 SEK | The handle in `nordisk_ads_context.json`; 990 + 1,199 matches the spec's product truth |
-| `nordisk-renhet-wellness-kit` | 2,189 SEK | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test` (its SKU is `NR-DOUBLE-FILTRATION`) |
-| `nordisk-wellness-kit-1` | 2,211 SEK | **The only record that has ever sold** — order `#NR_SE_1104`, 1,711 SEK, 2026-09-03, SKU `NR-WELLNESS-KIT-SE-1`. Its seven siblings (DK/NL/LU/FR/EN) also carry 2,211 SEK |
+**This section is superseded by `AUTONOMOUS-ADS-ARCHITECTURE2.md` v2.4.3 §23 Q19.** It is kept for
+the record, but its recommendation and its counts are both out of date — do not act on it.
 
-Until one is named canonical, the lander CTA and the adsys product registry can address **different
-records at different prices**. Recommendation: `nordisk-wellness-kit` (registry handle, spec-correct
-price), then repoint the lander CTA off the legacy handle. The seven 2,211 SEK duplicates should be
-drafted or consolidated.
+Two candidates remain live after the 2026-10-02 repointing (the third was renamed, see below):
+
+| Handle | id | Media | SEK | Why it is a candidate |
+|---|---|---|---|---|
+| `nordisk-renhet-wellness-kit` | `10161700766030` | **10** | 2,189 | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test` (SKU `NR-DOUBLE-FILTRATION`); created 2025-03-03 (oldest) |
+| `nordisk-wellness-kit` | `10246605144398` | **1** | 2,189 | The handle `nordisk_ads_context.json` carried; **referenced by 9 theme files / 14 references**, so it is what most live landers buy |
+
+**Renamed 2026-10-02:** `nordisk-wellness-kit-1` → `nr-nordisk-wellness-kit-1` (and
+`nordisk-renhet-welcome-kit` → `nr-nordisk-renhet-welcome-kit`), via REST `/redirects.json`.
+
+**Three corrections to this section's earlier form:**
+
+1. **The recommendation was wrong.** It picked `nordisk-wellness-kit` — the **1-media stub** — and
+described the 10-media record as "legacy". The evidence points the other way: the 10-media record is
+the older one, the better-equipped one, and the one the comparison advertorial already buys.
+2. **"The seven 2,211 SEK duplicates should be drafted or consolidated" is wrong and dangerous.**
+   There are **six** localized records, not seven, and they are **not duplicates**: Shopify cannot vary
+   product images per locale, so a localized image set forces a separate record. Consolidating one
+   destroys that locale's entire image set. Only the Swedish group was ever a real choice.
+3. **No ad final URL points at any Wellness Kit** (verified across all 22 ENABLED ads, 2026-10-02), so
+   this decision moves no live ad — the kit is reached from a lander's **CTA**.
+
+**Sales cannot break the tie:** all three original Swedish records are at **zero units sold ever**. The
+single sale in the family belongs to the renamed third record, whose intended market is itself
+unresolved (per Q11 / handoff §U2).
+
+**Provisional state:** `nordisk_ads_context.json` was repointed to the 10-media record on 2026-10-02,
+and that edit reverts in one line. It is *not* recorded as settled.
 
 ### 6.5 What still blocks
 
 1. **Google Ads OAuth re-consent** — unchanged; still the single Phase-0 exit blocker and the precondition for §6.6 live verification and the CLI workstream.
 2. **Q12** — publish the `nr-*` library under the §R3 gated path. This is now the **first** blocker on UNIT 1.21 (it previously sat behind Q11). It is a theme write, so the live-theme guardrail governs the path.
 3. **Q13** — image-provider pick. The working path is OpenRouter `google/gemini-3-pro-image`.
-4. **Canonical handle** — §6.4.
+4. **Canonical handle** — §6.4, now spec §23 **Q19**, pending arbitration.
+5. **Funnel-contract scope** — spec §23 **Q20**: the owner's *never an ad → product page* rule conflicts
+   with §13.2's `PRODUCT` lander class and §13.3's `"Klor & Vatten" → product page` bucket. 5 of the
+   22 ENABLED ads violate it today and are left in place pending the ruling.
 
 ---
 

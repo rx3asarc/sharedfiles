@@ -10,7 +10,8 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.2** (2026-10-02) | `29919d11bc45de98b199a1bd90ed5809` | **Canonical spec.** `P-STOCK` removed — it gated on a permanently inert field; §23 Q11 resolved and **owner-confirmed**; the §23 Q11/Q13 evidence rows are now formally versioned. See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.3** (2026-10-02) | `c4175548d919c9aafac03b7cf667e30e` | **Canonical spec.** Records the owner's funnel contract as a **conflict with §13.2/§13.3** rather than new law (§23 Q20), and puts the canonical Wellness-Kit handle to the owner as an **arbitration** (§23 Q19). Also records the two `nr-` handle renames + 4 redirects, and a corrected theme inventory for kit-handle references (39 files / 6 handles / 86 references, all with `productId` fallbacks). See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.2.md` | v2.4.2 (2026-10-02) | `29919d11bc45de98b199a1bd90ed5809` | Frozen copy, preserved so the v2.4.2 md5 still verifies. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.1.md` | v2.4.1 (2026-10-01) | `80bd2dc9450825c0dff4f601062593ac` | Frozen copy, preserved so the v2.4.1 md5 still verifies. §1.6 blockers resolved; predates the §23 evidence rows. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.md` | v2.4 (2026-09-24) | `50adf9fd920be5e2464a4a68b34e9007` | Frozen copy of the pre-fix spec, preserved so the v2.4 md5 still verifies. Superseded by v2.4.1. |
 | `AUTONOMOUS-ADS-GENERATIVE-LAYER.md` | **v1.0.1** (2026-10-02) | `6997f1b14ca771346f11b3afbab1ed7a` | **Companion extension** — Phase 1c (UNIT 1.19–1.23). GL.4.7 / GL.10 Q1 resolved: the "zero-inventory" condition is not a stock condition. Deliberately not merged; see its §GL.0. |
@@ -84,7 +85,7 @@ carries a complete ten-image set in its own language:
 |---|---|---|---|
 | `nordisk-kit-ien-etre` | French (`French_*`) | 2,211 | 2026-09-02 |
 | `nordisk-welcome-kit` | English | 2,211 | 2026-09-02 |
-| `nordisk-wellness-kit-1` | German | 2,211 | 2026-09-02 |
+| `nordisk-wellness-kit-1` → **`nr-nordisk-wellness-kit-1`** | German | 2,211 | 2026-09-02 |
 | `nordisk-wellness-saet` | Danish (`Danish_*`) | 2,211 | 2026-09-02 |
 | `nordisk-welness-kit` | Dutch/LU (`Luxembourgish_*`) | 2,211 | 2026-09-02 |
 | `nordisk-welness-pakket` | Dutch/BE (`Flemish_*`) | 2,211 | 2026-09-02 |
@@ -101,7 +102,7 @@ Shopping or paid-social feeds; (3) they carry **2,211 SEK** against the spec's h
 | Handle | SEK | Imgs | Created | Evidence of use |
 |---|---|---|---|---|
 | `nordisk-renhet-wellness-kit` | 2,189 | 10 | 2025-03-03 | CTA target of the live lander `/pages/duschfilter-jamforelse-bast-i-test`; SKU `NR-DOUBLE-FILTRATION` |
-| `nordisk-renhet-welcome-kit` | 2,189 | 8 | 2025-03-25 | full channel set |
+| `nordisk-renhet-welcome-kit` → **`nr-nordisk-renhet-welcome-kit`** | 2,189 | 8 | 2025-03-25 | full channel set |
 | `nordisk-wellness-kit` | 2,189 | **1** | 2025-03-11 | the handle in `nordisk_ads_context.json`; looks like an unfinished stub — one image only |
 
 One of Group B must be named canonical before paid routing is finalised, otherwise the lander CTA and
@@ -116,6 +117,90 @@ siblings, not seven. The only sale ever recorded is order `#NR_SE_1104` (1,711 S
 localized imagery forces separate records, **CTA resolution must be locale-aware** — an `en` or `fr`
 campaign cannot be routed to a Swedish record. This is a real gap in §6's product routing, tracked as
 an open decision rather than silently patched.
+
+## What v2.4.3 changed (2026-10-02)
+
+Two things were recorded, and **neither is a decision this document is entitled to make.** One is an
+arbitration between two agents; the other is a conflict between an owner instruction and the spec's
+own routing table. Both are written up with evidence and left open.
+
+### 1 — The canonical Wellness-Kit handle is an arbitration, not a settled fact (§23 Q19)
+
+v2.4.2's carry-over note said three handles claim the product and one must be named canonical. On
+2026-10-02 two agents independently picked **opposite** candidates from the same live reads, which is
+why this row does not name a winner.
+
+| | Candidate 1 | Candidate 2 |
+|---|---|---|
+| Handle | `nordisk-renhet-wellness-kit` | `nordisk-wellness-kit` |
+| Product id | `10161700766030` | `10246605144398` |
+| SKU | `NR-DOUBLE-FILTRATION` | `NR-WELLNESS-RENHET` |
+| Media | **10** | **1** |
+| Created | **2025-03-03** (oldest) | 2025-03-11 |
+| Status / channels | active, all 7 | active, all 7 |
+| Theme references | **0 files** | **9 files / 14 references** |
+| Live evidence | CTA target of `/pages/duschfilter-jamforelse-bast-i-test`, an ENABLED ad's own `final_url` | what most live landers actually buy |
+
+**The tie-break that was supposed to settle it, failed.** All three original Swedish records are tied
+at **zero units sold ever**, so sales cannot separate these two candidates.
+
+**Why candidate 1 was mis-reported as non-existent.** Its title is "Duschfilter startpaket – dubbel
+filtrering. 3+3 media." — it contains no token matching `*wellness*` or `*kit*`, so a title-based
+search cannot find it, while candidate 2 is titled "Nordisk Renhet Wellness Kit". A search matching
+on title and a search matching on handle do not return the same set, and this row is the first place
+that is written down.
+
+**State applied, provisionally:** `nordisk_ads_context.json` now points at candidate 1, on the
+grounds that it is the record the comparison advertorial already buys. That edit reverts in one line
+if the owner rules otherwise, and nothing else was changed — no product was edited, merged,
+unpublished or deleted.
+
+### 2 — The owner's funnel contract conflicts with §13 as written (§23 Q20)
+
+The owner's stated contract: *ads → lander → CTA target \{product page \| sales page \| VSL \|
+advertorial\}, never an ad pointing directly at a product page.*
+
+This is not a clarification of §13 — it is a change to it, in two places:
+
+| §13 says | The contract says | Consequence |
+|---|---|---|
+| `SOLUTION_AWARE`, `PRODUCT_AWARE`, `MOST_AWARE` → `lander_class = PRODUCT` (§13.2) | a product page is a CTA target, never an ad destination | three rows of the stage table stop being routable as written |
+| bucket `"Klor & Vatten" → product page` (§13.3) | same | the seeded taxonomy row is a live violation |
+| `lander_class` has no `VSL`, no `SALES_PAGE` | both are named valid CTA targets | the enum needs values before routing can address them |
+
+**Recorded as a conflict, with a strict and a narrow reading, both written out in §13.2.** The
+unresolved part is specifically **whether "never" includes brand and most-aware traffic** — the
+`MOST_AWARE` row exists so that a brand searcher reaches the product, and routing them through an
+advertorial is arguably worse than what they asked for.
+
+**Default applied so work is not blocked:** the **strict** reading governs *new* routing only — no new
+or modified ad may carry a `final_url` under `/products/`. **The 5 existing violations are left in
+place**, because repointing live ads on a reading an agent guessed is the expensive failure mode and
+the strict reading can be relaxed in one write whereas the reverse cannot.
+
+### 3 — Corrections this revision folds in
+
+- **The renames are real and the redirects exist.** `nordisk-renhet-welcome-kit` →
+  `nr-nordisk-renhet-welcome-kit` and `nordisk-wellness-kit-1` → `nr-nordisk-wellness-kit-1`,
+  applied 2026-10-02 through **REST** `/redirects.json` — GraphQL `urlRedirectCreate` returns
+  `ACCESS_DENIED` on this token (it holds `write_content`, not `write_online_store_navigation`).
+  Four redirects, sv + `/en` each; both products kept their ids (`10364884517198`,
+  `10379616911694`). Verified live 2026-10-02.
+- **v2.4.2's Group A / Group B tables are stale** for those two rows — corrected above.
+- **The kit-handle inventory was under-counted by every earlier pass.** It is **39 files holding 6
+distinct kit handles across 86 references**, not 5 sections. Every reference is paired with a numeric
+  `productId` and falls back to an id scan when the handle lookup misses, which is **why the renames
+  did not break any CTA** — the fallback, not the handle, is what keeps those blocks working today.
+  Totals by handle: `nordisk-welcome-kit` 46, `nordisk-wellness-saet` 16, `nordisk-wellness-kit` 14,
+  `nordisk-wellness-kit-1` 14, `nordisk-kit-ien-etre` 12, `nordisk-renhet-welcome-kit` 2.
+- **A corollary the renames expose:** because the fallback fires only when the handle *misses*, the 3
+  sections holding the 1-media stub's id (`10246605144398`) will keep buying the stub even after
+  their handle string is corrected, unless the paired `productId` is updated in the same edit.
+  Fixing the handle alone is therefore a **no-op** for those blocks. This is recorded here so the
+  lander-CTA cleanup is not attempted as a string replace.
+- **Nothing in the store, theme or ads account was modified by this version.** Every read behind it was
+  read-only; the only write anywhere in this workstream was the single `nordisk_ads_context.json`
+  handle field (backup retained), and it is provisional per Q19.
 
 ## What v2.4 deliberately did NOT change
 
@@ -150,7 +235,7 @@ documents and the two largest are logged as gaps **GL-G15** and **GL-G16**.
 
 ## Outstanding owner decisions
 
-See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q18**. The two that gate work:
+See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q20**. The two that gate work:
 
 1. **Q11 — is the `Nordisk Wellness Kit` zero-inventory condition real?** — **RESOLVED 2026-10-02** (owner-confirmed).
    It was never a stock condition: inventory tracking is off store-wide, so `inv=0` was a static
@@ -160,8 +245,17 @@ See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q18**. The two that gate work
    sections and 6 font files. Note it is a theme write, so the live-theme guardrail governs the path.
 3. **Q13 — image generation provider?** Facts corrected 2026-10-01 (OpenAI key absent; OpenRouter
    `google/gemini-3-pro-image` available). Owner pick still outstanding; determines §12.5 tooling.
-4. **Canonical Wellness Kit handle?** New, raised by the Q11 verification — three handles disagree on
-   price and record. See `HANDOFF-ads-cli-and-spec.md`.
+4. **Canonical Wellness Kit handle?** Raised by the Q11 verification, and now its own row — **§23 Q19**.
+   **PENDING ARBITRATION:** two agents picked opposite candidates from the same live reads
+   (`nordisk-renhet-wellness-kit` — 10 media, the advertorial's CTA target; `nordisk-wellness-kit` —
+   **1 media**, referenced by 9 theme files). Both are active, both are 2,189 SEK, and the store's
+   landers buy both. Sales cannot break the tie: all three original Swedish records are at zero units.
+   The applied `nordisk_ads_context.json` edit is provisional.
+5. **Q19 / Q20 are the two rows v2.4.3 adds.** **Q20 — scope of the funnel contract** — is the other one
+   that gates work: the owner's *never ad → product page* rule contradicts §13.2's `PRODUCT` lander
+   class and §13.3's `"Klor & Vatten" → product page` bucket, and 5 of 22 ENABLED ads implement it
+   today. The unresolved question is whether the ban covers brand / most-aware traffic. Strict reading
+   applied to new routing only; existing ads untouched.
 5. **Q14 — brand vs activation policy.** A per-ad optimiser converges on most-aware direct-response
    angles. Correct for the spec's stated objective, wrong as a description of how a brand grows.
    Default applied: activation-only, **explicitly labelled as such in the digest** so the limitation
