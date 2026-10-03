@@ -10,7 +10,8 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.5** (2026-10-02) | `6daf57d4030e279c5f363d20180dcd58` | **Canonical spec.** **Q19 resolved, owner-confirmed:** the canonical Swedish Wellness Kit is **`nordisk-renhet-wellness-kit`** (variant `51167026741582`) and the rival 1-media stub was **withdrawn by its own proposer**. Also gains hard evidence for **Q16**: 7 live pages carry `templateSuffix: advertorial-1` with **no advertorial template on live**, so a paid-traffic surface silently renders through the wrong template today. See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.6** (2026-10-03) | `6e88750107cdb7b735d196f1f0eec4de` | **Canonical spec.** Corrects the kit-reference inventory that §23 Q19's parked cleanup was executing against: the stub pair spans **7 live files (6 sections + 1 snippet)**, **4** of them wired to published pages, and the repo holds **9 kit handles / 134 references** — not "3 sections / 6 handles / 86 references". Records that the repoint **turns the gallery carousel on** (1 → 10 media) and lands a **Swedish-titled** record on the English page `/pages/itchy-skin`, which carries **2 ENABLED ads**. §23 Q12 now records the 2026-10-02 `nr-*` publish and its still-open gates. **No theme, product, or ad write.** See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.5.md` | v2.4.5 (2026-10-02) | `6daf57d4030e279c5f363d20180dcd58` | Frozen copy, preserved so the v2.4.5 md5 still verifies. Resolved Q19 (canonical kit) and gave Q16 hard evidence; carried the undercounted cleanup scope that v2.4.6 corrects. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.4.md` | v2.4.4 (2026-10-02) | `6d99630a98a02fd8dcc3ec14d7e68e50` | Frozen copy, preserved so the v2.4.4 md5 still verifies. Ruled the funnel contract as a purchase-intent rule. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.3.md` | v2.4.3 (2026-10-02) | `c4175548d919c9aafac03b7cf667e30e` | Frozen copy, preserved so the v2.4.3 md5 still verifies. Recorded Q19/Q20 as open. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.2.md` | v2.4.2 (2026-10-02) | `29919d11bc45de98b199a1bd90ed5809` | Frozen copy, preserved so the v2.4.2 md5 still verifies. |
@@ -297,6 +298,71 @@ This matters beyond Q16. **One of those pages is an ENABLED ad's own `final_url`
 
 **Nothing was written to the live theme, and no live page or ad was touched.** Every read behind this section was read-only.
 
+## What v2.4.6 changed (2026-10-03)
+
+### The parked cleanup's scope was wrong, and it was about to be executed
+
+§23 Q19 handed the next agent an execution list: repoint *"the 3 gempages sections"* paired with the
+stub's id. That list was measured again, read-only, against live theme `195492381006` (794 assets) and
+the theme repo. It is an undercount on both axes.
+
+**The stub pair (`all_products['nordisk-wellness-kit']` + id `10246605144398`) occupies 7 live files,
+not 3 sections.**
+
+```
+gp-section-558624190018618611   -> /pages/skin-absorbs-more-than-you-think   [live]
+gp-section-558613996182176670   -> /pages/skin-absorbs-more-than-you-think   [live]
+gp-section-558773340425815144   -> /pages/itchy-skin  (+ snippet ...-0)       [live]
+gp-section-558773340425946216   -> /pages/itchy-skin                          [live]
+gp-section-558933907576587157   -> page.gp-template-558933907441976213 (0 pages) [inert]
+gp-section-558933907576718229   -> page.gp-template-558933907441976213 (0 pages) [inert]
+```
+
+Only **4** of the six sections are wired to published pages. The two inert ones share a template with
+**zero** pages — almost certainly where "3 sections" came from. The published row's 3-name list also
+**omits `gp-section-558613996182176670`**, which is live. A faithful execution of the recorded list
+would have fixed `/pages/itchy-skin` (mostly), left the stub live on a published page, and told the
+tracker the cleanup was done. That failure mode is why this revision exists.
+
+Repo-side, the kit universe is **9 handles across 134 `all_products[]` references** in the `theme/`
+tree, not 6 handles / 86 references. The canonical record itself is referenced **0** times.
+
+### The repoint is not a string swap
+
+Both records are 2,189 SEK, so price does not move. The sections render `product.media`,
+`featured_image` and `featured_media`, and they gate a `gp-carousel` on `product.media.size > 1`. The
+stub has **1 media**; the canonical has **10**. Repointing therefore switches those live product
+blocks from a single static image to a carousel. Per §R2b that is a real-browser test change, and no
+browser test has yet been run on this theme — the 2026-10-02 publish shipped without one.
+
+### It lands on an existing violation instead of fixing one
+
+The canonical record's title is Swedish (`Duschfilter startpaket – dubbel filtrering. 3+3 media.`).
+`/pages/itchy-skin` is English content — the served HTML carries `lang="en"` and the page has **0
+`en` translation records** against default content that is already English — and it is the final URL
+of **2 ENABLED ads** in `SV SE | Discovery | Broad Match`. The project rules name `/pages/itchy-skin`
+explicitly as an EN page that must not carry Swedish-campaign traffic. Language is therefore a
+**precondition** on this cleanup, not a footnote: if those ads move, the kit work on that page is
+moot.
+
+### Also corrected
+
+- The paired id for `nordisk-renhet-welcome-kit` is `10364884517198`; v2.4.3's `10384517198` is a
+  typo. **Every** paired id resolves, so the 2026-10-02 renames cause **no live breakage** — the
+  id-scan fallback covers both renamed handles.
+- **§23 Q12 is closed, by deviation.** The `nr-*` library is on live (767 → 794, 0 errors, 0
+  overwrites), owner-approved, after `nrtheme push` refused under R1 and `theme_guard.py` proved to
+  have no apply-to-live verb — the write used `themeFilesUpsert` directly. The R2b browser test never
+  ran; **G17/G18 remain open**, and `nr-sticky-cta`'s inline JS is inert only because nothing
+  references it.
+
+### What was NOT done
+
+No theme, product, order, campaign, ad, keyword or budget write. No live-theme guardrail gate was
+exercised beyond read-only `check`. The cleanup remains blocked pending the owner's decision, because
+the only paths to a live theme file are a §R3 snapshot-and-approve cycle or another explicit Option-B
+deviation, and neither should be taken to fix an inventory count.
+
 ## What v2.4 deliberately did NOT change
 
 - **§1.6's CVR contradiction (1.5% vs 2.3%) — RESOLVED in v2.4.1** (2026-10-01): see above. It stayed open through v2.4 only because it governs a spend decision, not system structure; it is fixed now so the 10× path is internally consistent before any build.
@@ -335,12 +401,15 @@ See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q20**. The two that gate work
 1. **Q11 — is the `Nordisk Wellness Kit` zero-inventory condition real?** — **RESOLVED 2026-10-02** (owner-confirmed).
    It was never a stock condition: inventory tracking is off store-wide, so `inv=0` was a static
    placeholder and the product has no stock ceiling. G21 is closed and `P-STOCK` was removed in v2.4.2.
-2. **Q12 — publish the `nr-*` library under the §R3 gated path?** Still open, and now the **first
-   blocker** on UNIT 1.21 (it was previously behind Q11). 27 repo-only files, including all 12 native
-   sections and 6 font files. Note it is a theme write, so the live-theme guardrail governs the path.
+2. **Q12 — publish the `nr-*` library under the §R3 gated path? — CLOSED 2026-10-02, by deviation
+   (recorded v2.4.6).** All 27 files are on live (`767 → 794`, 0 errors, 0 overwrites), owner-approved,
+   after `nrtheme push` refused under R1 and `theme_guard.py` proved to have no apply-to-live verb — so
+   the write went through `themeFilesUpsert` directly. **The R2b browser test never ran and G17/G18
+   remain open**; the `nr-sticky-cta` inline JS is inert only because nothing references it yet. UNIT
+   1.21 is unblocked for page instantiation.
 3. **Q13 — image generation provider?** Facts corrected 2026-10-01 (OpenAI key absent; OpenRouter
    `google/gemini-3-pro-image` available). Owner pick still outstanding; determines §12.5 tooling.
-4. **Canonical Wellness Kit handle — RESOLVED 2026-10-02 (§23 Q19).** `nordisk-renhet-wellness-kit` (variant `51167026741582`). The rival 1-media stub was **withdrawn by the agent who proposed it**. Sales could not break the tie (every Swedish record: zero units ever) and did not need to — media count and creation date decided it. `nordisk_ads_context.json` stops being provisional. **Carried forward:** the 3 stub-paired gempages sections need handle + variant `51167026741582` **in the same edit**; a handle-only change is a no-op.
+4. **Canonical Wellness Kit handle — RESOLVED 2026-10-02 (§23 Q19).** `nordisk-renhet-wellness-kit` (variant `51167026741582`). The rival 1-media stub was **withdrawn by the agent who proposed it**. Sales could not break the tie (every Swedish record: zero units ever) and did not need to — media count and creation date decided it. `nordisk_ads_context.json` stops being provisional. **Carried forward, scope corrected v2.4.6:** the stub pair spans **7 live files (6 sections + 1 snippet)**, of which **4 sections are wired to published pages** — not "3 sections". Each needs handle + productId (`10246605144398` → `10161700766030`) **in the same edit**, since the paired `productId` is the authority whenever the handle misses and a handle-only change is a no-op. Two preconditions now sit in front of it: the move takes the product block from **1 media to 10**, which **turns the `gp-carousel` gallery on** (§R2b browser test required, never yet run on this theme), and the canonical record's **Swedish** title would land on `/pages/itchy-skin`, which is English and carries **2 ENABLED ads** in a Swedish campaign.
 5. **Q20 — scope of the funnel contract — RULED 2026-10-02.** The owner's rule is a **purchase-intent
    rule, not a stage rule**: a product page is permitted as an ad destination where intent is
    demonstrated (brand / `MOST_AWARE`, or a user tracked across prior ad touches) and is never
