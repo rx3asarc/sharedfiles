@@ -10,7 +10,8 @@ md5 remains retrievable. Do not delete a frozen version while it is referenced a
 
 | File | Version | md5 | Role |
 |---|---|---|---|
-| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.6** (2026-10-03) | `6e88750107cdb7b735d196f1f0eec4de` | **Canonical spec.** Corrects the kit-reference inventory that §23 Q19's parked cleanup was executing against: the stub pair spans **7 live files (6 sections + 1 snippet)**, **4** of them wired to published pages, and the repo holds **9 kit handles / 134 references** — not "3 sections / 6 handles / 86 references". Records that the repoint **turns the gallery carousel on** (1 → 10 media) and lands a **Swedish-titled** record on the English page `/pages/itchy-skin`, which carries **2 ENABLED ads**. §23 Q12 now records the 2026-10-02 `nr-*` publish and its still-open gates. **No theme, product, or ad write.** See below. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2.md` | **v2.4.7** (2026-10-03) | `0df8be10af748a36eed41c41af830656` | **Canonical spec.** Withdraws v2.4.6's `lang="en"` / translation-count evidence as non-discriminative (every layout emits `lang="{{ request.locale.iso_code }}"`, and the Swedish-authored `torr-hud-efter-duschen-duschfilter` serves `lang="en"` too), keeps the conclusion on the sound basis (the page's title tag is *"V1 Itchy Skin Angle English"*), and **completes Q20's violation set: 5 of 22, not 3** — 2 more ENABLED ads land on that English page and were tracked nowhere. Records that the language fix has **no Swedish counterpart page** to target. Also records that the two hidden `nr-test-*` pages are the **only** surface for the still-open G17/G18 gates and must not be deleted yet. |
+| `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.6.md` | v2.4.6 (2026-10-03) | `6e88750107cdb7b735d196f1f0eec4de` | Frozen copy, preserved so the v2.4.6 md5 still verifies. Corrected the kit-reference inventory; carried the `lang`-attribute evidence that v2.4.7 withdraws. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.5.md` | v2.4.5 (2026-10-02) | `6daf57d4030e279c5f363d20180dcd58` | Frozen copy, preserved so the v2.4.5 md5 still verifies. Resolved Q19 (canonical kit) and gave Q16 hard evidence; carried the undercounted cleanup scope that v2.4.6 corrects. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.4.md` | v2.4.4 (2026-10-02) | `6d99630a98a02fd8dcc3ec14d7e68e50` | Frozen copy, preserved so the v2.4.4 md5 still verifies. Ruled the funnel contract as a purchase-intent rule. |
 | `AUTONOMOUS-ADS-ARCHITECTURE2-v2.4.3.md` | v2.4.3 (2026-10-02) | `c4175548d919c9aafac03b7cf667e30e` | Frozen copy, preserved so the v2.4.3 md5 still verifies. Recorded Q19/Q20 as open. |
@@ -297,6 +298,54 @@ This matters beyond Q16. **One of those pages is an ENABLED ad's own `final_url`
 3. **Reading an advertorial for content today is unsafe** — until the template exists, any analysis of those 7 pages is analysis of the fallback layout, not of an advertorial.
 
 **Nothing was written to the live theme, and no live page or ad was touched.** Every read behind this section was read-only.
+
+## What v2.4.7 changed (2026-10-03)
+
+### v2.4.6's language evidence was wrong, even though its conclusion was right
+
+v2.4.6 recorded that `/pages/itchy-skin` is English *"because the served HTML carries `lang="en"` and the
+page has 0 `en` translation records"*. Both signals were tested again and both fail:
+
+| signal | why it fails | counterexample |
+|---|---|---|
+| `lang="en"` in served HTML | every layout emits `lang="{{ request.locale.iso_code }}"` and the store publishes `en`/`fr`/`sv` with no URL-prefixed locales, so the attribute tracks the **request** locale, not the content | `/pages/torr-hud-efter-duschen-duschfilter` is Swedish-authored and also serves `lang="en"` |
+| 0 `en` translation records | tracks whether the merchant translated the page, not what language it was authored in | the same Swedish page has **0** `en` records; `se-4` (Swedish default title) has **3** |
+
+**The conclusion survives on different evidence.** The page's `<title>` is literally *"V1 Itchy Skin Angle
+English"* and its H1 is English, so it is deliberately-authored English-angle content — and the project
+rules name this exact URL as one that must not carry Swedish-campaign traffic. Same finding, premises that
+hold up.
+
+### Q20's violation set was incomplete: 5 of 22, not 3
+
+Two more ENABLED ads in the same campaign land on that English page and are tracked nowhere in the spec:
+
+```
+ad 816987228364  SV SE | Discovery | Broad Match / Discovery Broad Match      -> /pages/itchy-skin
+ad 818400446070  SV SE | Discovery | Broad Match / Problem: Torr Hud & Kliande -> /pages/itchy-skin
+```
+
+Both verified ENABLED by live GAQL (customer `8479789152`). Q20's own ad ids were re-verified at the same
+time and are **correct** (`818400446073`, `816987228238` → `/products/nordisk-duschvattenfilter`).
+
+**The fix is not mechanical.** No Swedish counterpart page to `itchy-skin` exists, and the nearest by
+topic (`/pages/torr-hud-efter-duschen-duschfilter`, live, HTTP 200, Swedish title) **carries the phantom
+`advertorial-1` suffix** that Q16 records. Repointing there would trade a language mismatch for a
+template mismatch. Destination is the owner's call, not an agent guess.
+
+### The `nr-test-*` pages must not be deleted yet
+
+Q12's row recommended deleting `nr-test-8-reasons-20261002` / `nr-test-4-reasons-20261002`. Reversed here:
+they are the **only** surface on which the 12 new sections and 2 new templates render, and the still-open
+gates **G17 (interactive components exercised)** and **G18 (add-to-cart end-to-end)** are precisely the
+tests that need such a page. Deleting them before those gates pass removes the only harness for the
+components just published. They are visitor-invisible (`isPublished=false`) and no ENABLED ad points at
+them (verified live).
+
+### What was NOT done
+
+No ad, campaign, keyword, budget, theme, product or order write. The 2 language-mismatch ads are
+**identified, not repointed** — the destination decision is open.
 
 ## What v2.4.6 changed (2026-10-03)
 
