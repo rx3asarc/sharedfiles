@@ -636,3 +636,68 @@ or `fr` campaign must not be routed to a Swedish record. Left as an open decisio
 3 URLs, `SV SE | Conquest | Competitors` 10, `SV SE | Discovery | Broad Match` 7). The two zero-conversion
 spenders — **`EU EN | Discovery | Broad Match` (455.82 AUD)** and **`SV SE | Search | Investigative`
 (47.81 AUD)** — have **no enabled ads at all**, i.e. they spent and then stopped. Not touched.
+
+---
+
+## 9. UPDATE 2026-10-08 — goal-pool state mirror (`push-status`)
+
+**Read this section first if you are resuming.** It is the current state of the executing goal; everything
+above it is history that is still accurate but no longer current. Nothing in this section changes the spec —
+`AUTONOMOUS-ADS-ARCHITECTURE2.md` is still v2.4.7 (`0df8be10af748a36eed41c41af830656`) and the companion is
+still v1.0.1 (`6997f1b14ca771346f11b3afbab1ed7a`).
+
+### 9.1 Where Phase 0 stands (4 of 5 MET)
+
+`docs/PHASE0-EXIT.md` in the code repo (commits `c62bb05`, `03114cb`) is the authority; evidence paths there
+are relative to `/root/handoffs/nordisk-goal/`.
+
+- **MET:** criterion 1 (hot daily gads grains 7/7 COMPLETE, 2026-10-02..08), criterion 2 (guard gate,
+  24 PASS / 0 FAIL at this measurement — see 9.2), criterion 3 (2026-10-08 06:07 run returned budget data),
+  criterion 5 (`G-CONV-1` gate row sent with its payload).
+- **PENDING:** criterion 4 (Composio out of the Ads path, 3 consecutive days). The fix landed 2026-10-08
+  07:48, after that day's 06:07 run, so the three qualifying days are **2026-10-09/10/11** and the earliest
+  possible close is **after 2026-10-11 06:20**. Do not close on a bare "OK" log line — the A20 trap — and do
+  not close on one day.
+
+### 9.2 Two numbers you must not quote from memory
+
+- The code repo's suite count has moved repeatedly this shift (259 → 273 → 275 → 290 → **303**). The
+  **measured** state for this mirror is: guard `./run_guard_tests.sh` → **24 PASS / 0 FAIL**;
+  full suite → **303 tests, 1 failure**.
+- That single failure is a **false positive in a hygiene test**, not a product defect:
+  `adsys.tests.capture_fire_tests.ReadOnlyAndHygieneTests.test_never_runs_at_or_dumps_the_environment`
+  asserts `assertNotIn("at -c", self.src)` over the whole module source, and `bin/adsys-capture-fire.py`
+  names that prohibition **in its own docstring (line 18)** — it never executes `at -c`. Consequence:
+  criterion 2's PASS currently rests on the guard gate alone, and the 2026-10-11 close must re-measure a
+  green suite or explicitly disposition this failure. **Close condition, explicit:** criterion 2's acceptance
+  is closed on a re-measured GREEN suite, or this failure is explicitly dispositioned at the close. Fix belongs
+  to the code repo's owner (assigned to helper-1).
+
+### 9.3 Landed since the last pushed update
+
+- **UNIT 0.13** — read-only recon landed (no write path).
+- **§15.3 weekly cadence** — `adsys/weekly_selftest.py` + tests + `selftest.broken_inject` in
+  `adsys/config/schedule.toml`; live at `/etc/cron.d/adsys-selftest` (`30 4 * * 1`); commit `df9c7dc`.
+- **Closed:** 0.6, 0.7 (`0.7a` landed; `0.7b` held until the Phase-0 close), A7, C6, F7, W-1.
+
+### 9.4 Phase 1c — where the plan side is
+
+- `docs/plans/2026-10-08-GENLAYER-1C-PLAN.md` **v1.3** — md5 `1faed3426dbd39b3860150c1d338efa2` (UNIT 1.19–1.23).
+- `docs/plans/2026-10-08-A13-STAGE-RUNG-RULING.md` — md5 `81d0aa98474b7d5fa87aaa6f7fd562d2` (576 lines).
+  §12.6 **L1720 is the account-stage gate** (a different axis from the surface entry rung); new page
+  archetypes enter at **surface Stage 1** (GL-R2a + scope L87), imagery/display at **Stage 0** (L1722); no
+  surface above the account stage; the parent's L1722 archetype sentence and §21 UNIT 1.21 L2916 get a dated
+  amendment to Stage 1. **Until that amendment lands, no generation, routing or publish on 1.21.**
+- `docs/plans/2026-10-08-PHASE1-OWNERSHIP.md` — commit `f5f08d0` (one owner per unit and per file).
+
+### 9.5 Still open
+
+1. **Q13** image-generation provider/key; 2. **Q12** acceptance 1.21 #1 as written is false today
+(theme repo 816 vs live 794 files) and `THEME_PUBLISH` stays human-gated; 3. **criterion 4** to 2026-10-11;
+4. the false-positive suite test in 9.2.
+
+### 9.6 First move on resume
+
+Read `docs/PHASE0-EXIT.md` (it is short and it carries the close procedure), then check the three
+`criterion4-<day>.json` files for 2026-10-09/10/11 before touching anything else. Do not re-run an ingest by
+hand and count it.

@@ -473,3 +473,84 @@ See `AUTONOMOUS-ADS-ARCHITECTURE2.md` §23 **Q11–Q20**. The two that gate work
    angles. Correct for the spec's stated objective, wrong as a description of how a brand grows.
    Default applied: activation-only, **explicitly labelled as such in the digest** so the limitation
    is visible rather than silent.
+
+---
+
+## GOAL-POOL PROGRESS MIRROR — 2026-10-08
+
+**This is a progress mirror, not a spec revision.** No normative text, line number or md5 in
+`AUTONOMOUS-ADS-ARCHITECTURE2.md` (v2.4.7, `0df8be10af748a36eed41c41af830656`) or
+`AUTONOMOUS-ADS-GENERATIVE-LAYER.md` (v1.0.1, `6997f1b14ca771346f11b3afbab1ed7a`) was changed.
+**v2.4.7 remains the frozen canonical spec** and v1.0.1 remains the companion; this section records the
+executing goal's state against them.
+
+Why it exists: goal-pool task `push-status` — mirror goal progress into this tracker so the tracker is not a
+stale artefact. Nothing had been pushed to this repo since `88a7f6a` (2026-10-03). This section is that
+catch-up, and it is the only change in this commit.
+
+### Phase 0 — 4 of 5 criteria MET; criterion 4 is a wall-clock wait
+
+Source: `docs/PHASE0-EXIT.md` in the code repo (commits `c62bb05`, `03114cb`). **Evidence root:** every
+`evidence/...` path in this section is relative to `/root/handoffs/nordisk-goal/`, not to a repo.
+
+| # | Criterion | Verdict | Durable evidence |
+|---|---|---|---|
+| 1 | 7 consecutive days `COMPLETE` for hot Ads tables | **MET** | `evidence/coverage-7d-lead4.json` — hot daily gads grains 7/7 COMPLETE, 2026-10-02..08 |
+| 2 | T-BROKEN-INJECT + T-ZERO-SEMANTICS pass | **MET at the recorded measurement** — see the red-suite note below | `./run_guard_tests.sh` → 24 PASS / 0 FAIL (re-measured for this mirror) |
+| 3 | ads-monitor budget query returns data | **MET** | `docs/PHASE0-EXIT-ORPHANS.md`; the 2026-10-08 06:07:13 run returned 3 ENABLED campaigns, budgets 30.00 / 10.00 / 5.00 AUD (customer 8479789152) |
+| 4 | Composio removed from the Ads path (3 consecutive days) | **PENDING** | `evidence/criterion4_check_v2.py` must PASS for 2026-10-09/10/11; earliest possible close **after 2026-10-11 06:20** |
+| 5 | G-CONV-1 sent | **MET** | `db/ads_decisions.db` → `gate_requests` row `G-CONV-1 / PENDING`; payload `gates/G-CONV-1.json` (Telegram gateway N5 unbuilt → the spec's documented fallback) |
+
+### Landed since the last push
+
+- **UNIT 0.13** — read-only recon landed; no write path added.
+- **§15.3 weekly cadence** — `adsys/weekly_selftest.py` + its tests + the `selftest.broken_inject` entry in
+  `adsys/config/schedule.toml`, live at `/etc/cron.d/adsys-selftest` (`30 4 * * 1`, Stockholm); commit `df9c7dc`.
+- **Closed:** 0.6, 0.7 (`0.7a` landed; `0.7b` held pending the Phase-0 close), A7, C6, F7, W-1.
+
+### Measurements taken for this mirror (point-in-time, 2026-10-08)
+
+Re-measured rather than relayed; logs under `/root/handoffs/nordisk-goal/evidence/helper-7-push-status/`.
+Commands are the code repo's own STATE.md §Verification commands.
+
+| Measure | Value | Evidence |
+|---|---|---|
+| Guard gate `./run_guard_tests.sh` | **24 PASS / 0 FAIL** (exit 0) | `evidence/helper-7-push-status/guard_tests.log` |
+| Full suite `python3 -m unittest discover -s adsys/tests -p "*_tests.py" -t .` | **303 tests, 1 failure** (exit 1) | `evidence/helper-7-push-status/unit_tests.log` |
+| Hot daily gads coverage (criterion 1) | 7/7 COMPLETE | `evidence/takeover-lead5/coverage-7d.log` |
+
+**The earlier "23 PASS / 275 OK" and the "24 PASS / 290 OK" in `PHASE0-EXIT.md`'s caveat are both superseded
+point-in-time snapshots.** Treat any suite figure in this tracker as a dated measurement, never as a frozen
+claim.
+
+**The one suite failure is a false positive in the test, not a product defect.**
+`adsys.tests.capture_fire_tests.ReadOnlyAndHygieneTests.test_never_runs_at_or_dumps_the_environment` asserts
+`assertNotIn("at -c", self.src)` over the module's whole source text. `bin/adsys-capture-fire.py` never
+executes `at -c`; its **docstring at line 18** explains that the tool is cron precisely so that an `at` job's
+environment is never spooled, and names the prohibition in prose. The assertion therefore fails on the
+module's own documentation. Consequence: **criterion 2's PASS rests on the guard gate (24/0), not on a green
+full suite.** **Close condition, explicit:** criterion 2's acceptance must be closed on a **re-measured GREEN
+suite**, or this failure must be **explicitly dispositioned** at the close; otherwise a MET criterion sits on
+a red suite. `PHASE0-EXIT.md` carries the same red state for the same reason. Owner's fix, not applied here:
+assert over executable source (strip the docstring) or over argv, rather than a whole-file substring match.
+
+### Phase 1c — plan side, not spec text
+
+- `docs/plans/2026-10-08-GENLAYER-1C-PLAN.md` **v1.3** — md5 `1faed3426dbd39b3860150c1d338efa2` (UNIT 1.19–1.23;
+  1.22's generation half owner-deferred).
+- `docs/plans/2026-10-08-A13-STAGE-RUNG-RULING.md` — md5 `81d0aa98474b7d5fa87aaa6f7fd562d2` (576 lines).
+  Ruling: §12.6 **L1720 is the account-stage gate** on the autonomous Page path (a different axis from the
+  surface entry rung); new page archetypes enter at **surface Stage 1** (glayer GL-R2a L63–71 + scope L87),
+  imagery and display classes at **Stage 0** (parent L1722, which GL-R2a L66 itself reasons); no surface stage
+  may exceed the account stage. The parent's §12.6 L1722 archetype sentence and §21 UNIT 1.21 L2916 are **to be
+  corrected to Stage 1 by a dated amendment** — until that amendment lands, **no generation, routing or
+  publish on UNIT 1.21 may proceed on any reading** (goal STATE ruling W-3).
+- `docs/plans/2026-10-08-PHASE1-OWNERSHIP.md` — commit `f5f08d0` (one owner per unit and per file).
+
+### Open at the time of this mirror
+
+1. **Q13** — image-generation provider/key (owner decision; §12.5's generation half cannot run without it).
+2. **Q12** — acceptance 1.21 #1 as written is false today (theme repo 816 files vs live 794); the
+   `THEME_PUBLISH` path remains human-gated and blocking.
+3. **Criterion 4** — wall-clock wait to 2026-10-11 06:20.
+4. The false-positive suite test recorded above.
